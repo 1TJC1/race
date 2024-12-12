@@ -19,6 +19,12 @@
 #endif
 
 //-----------------LCD端口定义----------------
+#define LCD_SCLK_Clr() P12 = 0
+#define LCD_SCLK_Set() P12 = 1
+
+#define LCD_MOSI_Clr() P55 = 0
+#define LCD_MOSI_Set() P55 = 1
+
 #define LCD_RES_Clr()  P40 = 0//RES
 #define LCD_RES_Set()  P40 = 1
 

@@ -211,7 +211,7 @@ void main(void)
 	SPI_Init();
 	LCD_Init();//LCD初始化
 	LCD_Clear1(BLACK);
-	LCD_ShowString(40,100,(u8 *)"Test",WHITE,BLACK,16,0);
+	LCD_ShowString(0,0,(u8 *)"T",WHITE,BLACK,24,0);
 //	LCD_ShowString(40,160,(u8 *)"KEY: -- ",WHITE,BLACK,16,0);
 
 	/* 开机初始化为状态1 配置P3.2 P3.3为输入模式*/

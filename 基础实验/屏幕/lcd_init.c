@@ -30,12 +30,30 @@ void Delayxms(unsigned int x)	//@11.0592MHz
 ******************************************************************************/
 void LCD_Writ_Bus(u8 dat) 
 {
-    LCD_CS_Clr();
-		SPI_SendByte(dat);
+//    LCD_CS_Clr();
+//		SPI_SendByte(dat);
 //		SPI_SendData(&dat, 1);
 //    HAL_SPI_Transmit(&userSPI,&dat,1,0xffff);
 //  HAL_SPI_Transmit_DMA(&userSPI,&dat,1);
-    LCD_CS_Set();
+//    LCD_CS_Set();
+	
+			u8 i;
+			LCD_CS_Clr();
+			for(i=0;i<8;i++)
+			{			  
+				LCD_SCLK_Clr();
+				if(dat&0x80)
+				{
+					 LCD_MOSI_Set();
+				}
+				else
+				{
+					 LCD_MOSI_Clr();
+				}
+				LCD_SCLK_Set();
+				dat<<=1;
+			}	
+			LCD_CS_Set();	
 }
 /******************************************************************************
       函数说明：LCD写入数据
@@ -61,20 +79,22 @@ void LCD_WR_DATA8(u8 dat)
 ******************************************************************************/
 void LCD_WR_DATA(u16 dat)
 {
-    u8 a[2];
+//    u8 a[2];
 
-    a[0] = dat>>8;
-    a[1] = (u8)dat;
+//    a[0] = dat>>8;
+//    a[1] = (u8)dat;
 
-    LCD_DC_Set();//写数据
-    LCD_CS_Clr();
-		SPI_SendByte(a[0]);
-		SPI_SendByte(a[1]);
-//		SPI_SendData(a, 2);
-//    HAL_SPI_Transmit(&userSPI, a, 2, 0x1000);
-//  HAL_SPI_Transmit_DMA(&userSPI, a, 2);
-    LCD_CS_Set() ;
-
+//    LCD_DC_Set();//写数据
+//    LCD_CS_Clr();
+//		SPI_SendByte(a[0]);
+//		SPI_SendByte(a[1]);
+////		SPI_SendData(a, 2);
+////    HAL_SPI_Transmit(&userSPI, a, 2, 0x1000);
+////  HAL_SPI_Transmit_DMA(&userSPI, a, 2);
+//    LCD_CS_Set() ;
+	
+			LCD_Writ_Bus(dat>>8);
+			LCD_Writ_Bus(dat);
 }
 
 /******************************************************************************

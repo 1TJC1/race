@@ -467,24 +467,48 @@ void LCD_ShowChar(u16 x,u16 y,u8 num,u16 fc,u16 bc,u8 sizey,u8 mode)
     u16 x0=x;
     u8 a[16];
     sizex=sizey/2;
+	
     TypefaceNum=(sizex/8+((sizex%8)?1:0))*sizey;
-    num=num-' ';    //得到偏移后的值
+	
+    num=num - ' ';    //得到偏移后的值
     LCD_Address_Set(x,y,x+sizex-1,y+sizey-1);  //设置光标位置
     for(i=0;i<TypefaceNum;i++)
     {
         if(sizey==16)temp=ascii_1608[num][i];              //调用6x12字体
 //        else if(sizey==16)temp=ascii_1608[num][i];       //调用8x16字体
-//        else if(sizey==24)temp=ascii_2412[num][i];       //调用12x24字体
+        else if(sizey==24)temp=ascii_2412[num][i];       //调用12x24字体
 //        else if(sizey==32)temp=ascii_3216[num][i];       //调用16x32字体
         else return;
         for(t=0;t<8;t++)
         {
-            if(!mode)//非叠加模式
+
+						if(!mode)//非叠加模式
+						{
+							if(temp&(0x01<<t))LCD_WR_DATA(fc);
+							else LCD_WR_DATA(bc);
+							
+							m++;
+							if(m%sizex==0)
+							{
+								m=0;
+								break;
+							}
+						}
+					
+            /*if(!mode)//非叠加模式
             {
-                if(sizex%8==0)
+                if(sizex % 8==0)
                 {
-                    if(temp&(0x01<<t)){a[2*t]=(u8)((fc>>8)&0XFF);a[2*t+1]=(u8)(fc&0XFF);}//LCD_WR_DATA(fc);
-                    else {a[2*t]=(u8)((bc>>8)&0XFF);a[2*t+1]=(u8)(bc&0XFF);}//LCD_WR_DATA(bc);
+                    if(temp&(0x01<<t))
+										{
+												a[2*t]=(u8)((fc>>8)&0XFF);
+												a[2*t+1]=(u8)(fc&0XFF);
+										}//LCD_WR_DATA(fc);
+                    else 
+										{
+												a[2*t]=(u8)((bc>>8)&0XFF);
+												a[2*t+1]=(u8)(bc&0XFF);
+										}//LCD_WR_DATA(bc);
                     m++;
                     if(m%sizex==0)
                     {
@@ -504,30 +528,18 @@ void LCD_ShowChar(u16 x,u16 y,u8 num,u16 fc,u16 bc,u8 sizey,u8 mode)
                     }
 
                 }
-            }
-            else//叠加模式
-            {
-                if(temp&(0x01<<t))LCD_DrawPoint(x,y,fc);//画一个点
-                x++;
-                if((x-x0)==sizex)
-                {
-                    x=x0;
-                    y++;
-                    break;
-                }
-            }
+            }*/
         }
-        if(sizex%8==0)
+        /*if(sizex%8==0)
         {
             if(!mode)//非叠加模式
             {
                 LCD_DC_Set();//写数据
                 LCD_CS_Clr();
 								SPI_SendData((u8 *)&a[0], 16);
-//                HAL_SPI_Transmit(&hspi1, (u8 *)&a[0], 16,100);
                 LCD_CS_Set() ;
             }
-        }
+        }*/
     }
 }
 /******************************************************************************

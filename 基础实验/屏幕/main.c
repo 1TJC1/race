@@ -83,17 +83,17 @@ void Delay1ms(unsigned int ms)		//@11.0592MHz
 
 void GPIO_Init(void)
 {
-	P0M1 = 0x00; P0M0 = 0xff; 
-	P1M1 = 0x00; P1M0 = 0xff;        
-	P2M1 = 0x00; P2M0 = 0xff;
-	P3M1 = 0x0c;P3M0 = 0xf3;  
-	P4M1 = 0x00; P4M0 = 0xFF;  
+//	P0M1 = 0x00; P0M0 = 0xff; 
+//	P1M1 = 0x00; P1M0 = 0xff;        
+//	P2M1 = 0x00; P2M0 = 0xff;
+//	P3M1 = 0x0c;P3M0 = 0xf3;  
+//	P4M1 = 0x00; P4M0 = 0xFF;  
 
-	P0 = 0;
-	P1 = 0;
-	P2 = 0;
-	P3 = 0;
-	P4 = 0;
+//	P0 = 0;
+//	P1 = 0;
+//	P2 = 0;
+//	P3 = 0;
+//	P4 = 0;
 
 }
 

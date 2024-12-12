@@ -1,0 +1,4 @@
+".\Objects\main.obj",
+".\Objects\tm1650.obj" 
+TO ".\Objects\E08" 
+PRINT(".\Listings\E08.m51") RAMSIZE(256) 

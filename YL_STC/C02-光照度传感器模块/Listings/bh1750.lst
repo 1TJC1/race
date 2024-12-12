@@ -1,0 +1,125 @@
+C51 COMPILER V9.60.7.0   BH1750                                                            06/25/2024 15:51:31 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE BH1750
+OBJECT MODULE PLACED IN .\Objects\bh1750.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE BH1750\bh1750.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\LCD;.\BH1750) DE
+                    -BUG OBJECTEXTEND PRINT(.\Listings\bh1750.lst) TABS(2) OBJECT(.\Objects\bh1750.obj)
+
+line level    source
+
+   1          #include "bh1750.h"
+   2          #include "i2c.h"
+   3          #include "lcd_init.h"
+   4          
+   5          u8 BUF[2];
+   6          u16 result;
+   7          
+   8          BH1750_Data_TypeDef BH1750_Data;
+   9          
+  10          
+  11          void I2C_BH1750_Transmit(u8 BH1750_address,u8 *Data,u8 length)
+  12          {
+  13   1        u8 i=0;
+  14   1        I2C_Start();
+  15   1        
+  16   1        I2C_SendByte(BH1750_address);
+  17   1        I2C_WaitAck();
+  18   1        
+  19   1        for(i=0;i<length;i++)
+  20   1        {
+  21   2          I2C_SendByte(Data[i]);
+  22   2          I2C_WaitAck();
+  23   2        }
+  24   1        
+  25   1        I2C_Stop();
+  26   1      }
+  27          
+  28          u8 I2C_Master_Receive(u8 BH1750_address, u8 *data_buffer, u8 length) 
+  29          {
+  30   1        u8 i=0;
+  31   1        I2C_Start();
+  32   1        
+  33   1        I2C_SendByte(BH1750_address + 1); // 发送设备地址+读命令
+  34   1        if(I2C_WaitAck()) 
+  35   1        {
+  36   2          I2C_Stop();
+  37   2          return 0;
+  38   2        }
+  39   1        for (i = 0; i < length; i++) 
+  40   1        {
+  41   2          data_buffer[i] = I2C_ReceiveByte();
+  42   2          if (i == length - 1) 
+  43   2          {
+  44   3            I2C_Stop(); // 最后一个字节后发送停止信号
+  45   3          } 
+  46   2          else 
+  47   2          {
+  48   3            I2C_SendAck(); // 发送应答信号
+  49   3          }
+  50   2        }
+  51   1        return 1;
+  52   1      }
+  53          
+  54          /***************************************************************
+C51 COMPILER V9.60.7.0   BH1750                                                            06/25/2024 15:51:31 PAGE 2   
+
+  55          * 函数名称: Init_BH1750
+  56          * 说    明: 写命令初始化BH1750
+  57          * 参    数: 无
+  58          * 返 回 值: 无
+  59          ***************************************************************/
+  60          void Init_BH1750(void)  //上电
+  61          {
+  62   1        u8 t_Data = 0x01; //上电指令(0X01)
+  63   1        I2C_BH1750_Transmit(BH1750_Addr,&t_Data,1);
+  64   1      //  HAL_I2C_Master_Transmit(&hi2c2,BH1750_Addr,&t_Data,1,0xff);
+  65   1      }
+  66          
+  67          /***************************************************************
+  68          * 函数名称: Start_BH1750
+  69          * 说    明: 启动BH1750
+  70          * 参    数: 无
+  71          * 返 回 值: 无
+  72          ***************************************************************/
+  73          void Start_BH1750(void)
+  74          {
+  75   1        u8 t_Data = 0x10; //连续高分辨率测量(0x10)
+  76   1        I2C_BH1750_Transmit(BH1750_Addr,&t_Data,1);
+  77   1      //  HAL_I2C_Master_Transmit(&hi2c2,BH1750_Addr,&t_Data,1,0xff); 
+  78   1      }
+  79          
+  80          void Init_BH1750_config(void)
+  81          {
+  82   1        Init_BH1750();
+  83   1      }
+  84          /***************************************************************
+  85          * 说    明: 测量光照强度
+  86          * 参    数: 无
+  87          * 返 回 值: 无
+  88          ***************************************************************/
+  89          void BH1750_Read_Data(void)
+  90          {
+  91   1        Start_BH1750();
+  92   1        Delayxms(200);
+  93   1        I2C_Master_Receive(BH1750_Addr,BUF,2); 
+  94   1      //  HAL_I2C_Master_Receive(&hi2c2, BH1750_Addr+1,BUF,2,0xff); 
+  95   1        result=BUF[0];
+  96   1        result=(result<<8)+BUF[1];  //合成数据，即光照数据  
+  97   1        BH1750_Data.Lux=(float)(result/1.2); //光照强度=(寄存器值[15:0]*分辨率)/1.2（单位：勒克�
+             -��lux）
+  98   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    331    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      8      14
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

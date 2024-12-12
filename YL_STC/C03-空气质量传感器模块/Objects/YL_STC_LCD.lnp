@@ -1,0 +1,8 @@
+".\Objects\main.obj",
+".\Objects\spi.obj",
+".\Objects\i2c.obj",
+".\Objects\lcd.obj",
+".\Objects\lcd_init.obj",
+".\Objects\sgp30.obj" 
+TO ".\Objects\YL_STC_LCD" 
+PRINT(".\Listings\YL_STC_LCD.m51") RAMSIZE(256) 

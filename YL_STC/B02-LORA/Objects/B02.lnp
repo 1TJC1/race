@@ -1,0 +1,4 @@
+".\Objects\main.obj",
+".\Objects\uart2.obj" 
+TO ".\Objects\B02" 
+PRINT(".\Listings\B02.m51") RAMSIZE(256) 

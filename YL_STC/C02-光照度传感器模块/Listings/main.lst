@@ -1,0 +1,137 @@
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 15:51:31 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\LCD;.\BH1750) DEBUG OBJEC
+                    -TEXTEND PRINT(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include "main.h"
+   2          #include "spi.h"
+   3          #include "lcd.h"
+   4          #include "lcd_init.h"
+   5          #include "BH1750.h"
+   6          
+   7          
+   8          extern BH1750_Data_TypeDef BH1750_Data;
+   9          
+  10          u8 bh1750_Collect=0;
+  11          
+  12          
+  13          void GPIO_Init(void)
+  14          {
+  15   1        P0M1 = 0x00;//设置P0端口模式
+  16   1        P0M0 = 0xff;
+  17   1        
+  18   1        P1M1 = 0x00;//设置P1端口模式
+  19   1        P1M0 = 0x00;
+  20   1                    
+  21   1        P2M1 = 0x00;//设置P2端口模式
+  22   1        P2M0 = 0x00;
+  23   1                    
+  24   1        P3M1 = 0x00;//设置P3端口模式
+  25   1        P3M0 = 0x00;
+  26   1                    
+  27   1        P4M1 = 0x00;//设置P4端口模式
+  28   1        P4M0 = 0x00;
+  29   1                    
+  30   1        P5M1 = 0x00;//设置P5端口模式
+  31   1        P5M0 = 0x00;  
+  32   1      }
+  33          
+  34          void Timer0_Init(void)    //1毫秒@11.0592MHz
+  35          {
+  36   1        AUXR &= 0x7F;     //定时器时钟12T模式
+  37   1        TMOD &= 0xF0;     //设置定时器模式
+  38   1        TL0 = 0x66;       //设置定时初始值
+  39   1        TH0 = 0xFC;       //设置定时初始值
+  40   1        TF0 = 0;        //清除TF0标志
+  41   1        TR0 = 1;        //定时器0开始计时
+  42   1        ET0 = 1;        //使能定时器0中断
+  43   1      }
+  44          
+  45          //void Uart1Init(void)    //9600bps@11.0592MHz
+  46          //{
+  47          //  SCON = 0x50;    //8位数据,可变波特率
+  48          //  AUXR &= 0xBF;   //定时器时钟12T模式
+  49          //  AUXR &= 0xFE;   //串口1选择定时器1为波特率发生器
+  50          //  TMOD &= 0x0F;   //设置定时器模式
+  51          //  TL1 = 0xE8;     //设置定时初始值
+  52          //  TH1 = 0xFF;     //设置定时初始值
+  53          //  ET1 = 0;      //禁止定时器中断
+  54          //  TR1 = 1;      //定时器1开始计时
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 15:51:31 PAGE 2   
+
+  55          //  ES = 1;
+  56          //  TI = 1;
+  57          //} 
+  58          
+  59          void main()
+  60          {
+  61   1        GPIO_Init();
+  62   1        Timer0_Init();
+  63   1        EA = 1;
+  64   1        SPI_Init();
+  65   1        Init_BH1750_config();
+  66   1        LCD_Init();//LCD初始化
+  67   1        LCD_Clear1(BLACK);
+  68   1        LCD_DrawLine(20,40,20,140,BROWN);   //坐标轴
+  69   1        LCD_DrawLine(20,140,200,140,BROWN);
+  70   1        while(1)
+  71   1        {
+  72   2          static u8 Lux_value_pro=0;//前一次的光照度数值
+  73   2          static u8 cnt1_value=1;
+  74   2          LED1=0;
+  75   2          if(bh1750_Collect)
+  76   2          {
+  77   3            bh1750_Collect=0;
+  78   3            
+  79   3            BH1750_Read_Data();//温湿度采集
+  80   3            
+  81   3            display_printf(40,165,WHITE,BLACK,16,0,"光照度：%d ",(int)BH1750_Data.Lux);
+  82   3            LCD_DrawLine(20+(cnt1_value-1),140-Lux_value_pro,20+cnt1_value,140-(int)(BH1750_Data.Lux/655.35f),GREEN
+             -);//温度的折线图
+  83   3            Lux_value_pro=(int)(BH1750_Data.Lux/655.35f);
+  84   3            
+  85   3            cnt1_value++;
+  86   3            if(cnt1_value>=180)
+  87   3            {
+  88   4              cnt1_value=1;
+  89   4              LCD_Fill( 20,40,200,140,BLACK);//清
+  90   4              
+  91   4              LCD_DrawLine(20,40,20,140,BROWN);   //坐标轴
+  92   4              LCD_DrawLine(20,140,200,140,BROWN);
+  93   4            }
+  94   3          }
+  95   2        }
+  96   1      }
+  97          
+  98          void Timer0_Isr(void) interrupt 1
+  99          {
+ 100   1        static unsigned int count1 = 0;
+ 101   1        if (++count1 >= 100)
+ 102   1        {
+ 103   2          LED8 = ~LED8;
+ 104   2          count1 = 0;
+ 105   2          bh1750_Collect=1;
+ 106   2        }
+ 107   1      }
+ 108          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    532    ----
+   CONSTANT SIZE    =     12    ----
+   XDATA SIZE       =      5    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 15:51:31 PAGE 3   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

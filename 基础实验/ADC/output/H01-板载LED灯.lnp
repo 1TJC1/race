@@ -1,0 +1,7 @@
+".\output\STARTUP.obj",
+".\output\main.obj",
+".\output\lcd.obj",
+".\output\lcd_init.obj",
+".\output\spi.obj" 
+TO ".\output\H01-∞Â‘ÿLEDµ∆" 
+PRINT(".\listing\H01-∞Â‘ÿLEDµ∆.m51") RAMSIZE(256) 

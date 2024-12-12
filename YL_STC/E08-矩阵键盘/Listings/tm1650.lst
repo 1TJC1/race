@@ -1,0 +1,245 @@
+C51 COMPILER V9.60.7.0   TM1650                                                            06/25/2024 17:45:06 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE TM1650
+OBJECT MODULE PLACED IN .\Objects\tm1650.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE tm1650.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listi
+                    -ngs\tm1650.lst) TABS(2) OBJECT(.\Objects\tm1650.obj)
+
+line level    source
+
+   1          #include <tm1650.H>
+   2          
+   3          unsigned char code dig1[11]={0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f,0x40};
+   4          //0、1、2、3、4、5、6、7、8、9、-//不带小数点
+   5          
+   6          unsigned char code dig2[11]={0xbf,0x86,0xdb,0xcf,0xe6,0xed,0xfd,0x87,0xff,0xef,0xc0};
+   7          //0、1、2、3、4、5、6、7、8、9、-//带小数点
+   8          
+   9          unsigned char key_data = 0; //键盘扫描码
+  10          
+  11          void Delay2us()   //@11.0592MHz
+  12          {
+  13   1        unsigned char i;
+  14   1      
+  15   1        i = 3;
+  16   1        while (--i);
+  17   1      }
+  18          
+  19          void Delay10us()    //@11.0592MHz
+  20          {
+  21   1        unsigned char i;
+  22   1      
+  23   1        _nop_();
+  24   1        i = 25;
+  25   1        while (--i);
+  26   1      }
+  27          
+  28          // TM Start//
+  29          void TM_Start(void)
+  30          {
+  31   1        SDA = 1;
+  32   1        SCL = 1;
+  33   1        Delay10us();
+  34   1        SDA = 0;
+  35   1      }
+  36          
+  37          // TM Stop//
+  38          void TM_Stop(void)
+  39          {
+  40   1        SDA = 0;
+  41   1        SCL = 1;
+  42   1        Delay10us();
+  43   1        SDA = 1;
+  44   1      }
+  45          
+  46          void TM_Ack(void)
+  47          {
+  48   1        unsigned char timeout=1;
+  49   1        SCL=1;
+  50   1        Delay10us();
+  51   1        SCL=0;
+  52   1        while((SDA) && (timeout <= 100))
+  53   1        {
+  54   2          timeout++;
+C51 COMPILER V9.60.7.0   TM1650                                                            06/25/2024 17:45:06 PAGE 2   
+
+  55   2        }
+  56   1        Delay10us();
+  57   1        SCL = 0;
+  58   1      }
+  59          
+  60          void Write_TM_Byte(unsigned char TM_Byte)
+  61          {
+  62   1        unsigned char i;
+  63   1        SCL=0;
+  64   1        Delay2us();
+  65   1        for(i=0;i<8;i++)
+  66   1        {
+  67   2          if(TM_Byte & 0x80)
+  68   2          {
+  69   3            SDA=1;
+  70   3          }
+  71   2          else
+  72   2          {
+  73   3            SDA=0;
+  74   3          }
+  75   2          SCL=0;
+  76   2          Delay10us();
+  77   2          SCL=1;
+  78   2          Delay10us();
+  79   2          SCL=0;
+  80   2          TM_Byte<<=1;
+  81   2        }
+  82   1      }
+  83          
+  84          unsigned char Read_TM_Byte(void)
+  85          {
+  86   1        unsigned char i,j,TM_Byte;
+  87   1        for(i=0;i<8;i++)
+  88   1        {
+  89   2          SCL=0;
+  90   2          Delay10us();
+  91   2          TM_Byte<<=1;
+  92   2          j=SDA;
+  93   2          TM_Byte+=j;
+  94   2          SCL=1;
+  95   2          Delay10us();
+  96   2        }
+  97   1        SCL=0;
+  98   1        Delay2us();
+  99   1        return TM_Byte;
+ 100   1      }
+ 101          //写数据
+ 102          void TM_WrDat(unsigned char add,unsigned char dat)
+ 103          {
+ 104   1        TM_Start();
+ 105   1        Write_TM_Byte(add);//显存地址
+ 106   1        TM_Ack();
+ 107   1        Write_TM_Byte(dat);//显示数据
+ 108   1        TM_Ack();
+ 109   1        TM_Stop();
+ 110   1      }
+ 111          
+ 112          //写命令
+ 113          void TM_WrCmd(unsigned char Bri)
+ 114          {
+ 115   1        TM_Start();
+ 116   1        Write_TM_Byte(0x48);//显示模式
+C51 COMPILER V9.60.7.0   TM1650                                                            06/25/2024 17:45:06 PAGE 3   
+
+ 117   1        TM_Ack();
+ 118   1        Write_TM_Byte(Bri);
+ 119   1        TM_Ack();
+ 120   1        TM_Stop();
+ 121   1      }
+ 122          
+ 123          void TM_Init(void)
+ 124          {
+ 125   1        TM_WrCmd(0x01);//1级亮度//8段显示//开显示
+ 126   1        TM_WrDat(0x68,0xff);//DIG1
+ 127   1        TM_WrDat(0x6a,0xff);//DIG2
+ 128   1        TM_WrDat(0x6c,0xff);//DIG3
+ 129   1        TM_WrDat(0x6e,0xff);//DIG4
+ 130   1      }
+ 131          
+ 132          void Dis_TM(unsigned char dig1,unsigned char dig2,unsigned char dig3,unsigned char dig4)
+ 133          {
+ 134   1        TM_WrDat(0x68,dig1);//DIG1
+ 135   1        TM_WrDat(0x6a,dig2);//DIG2
+ 136   1        TM_WrDat(0x6c,dig3);//DIG3
+ 137   1        TM_WrDat(0x6e,dig4);//DIG4
+ 138   1      }
+ 139          
+ 140          void TM_ReCmd()
+ 141          {
+ 142   1      TM_Start();
+ 143   1      Write_TM_Byte(0x49);//读取模式
+ 144   1      TM_Ack();
+ 145   1      key_data = Read_TM_Byte();//读取键盘扫描码
+ 146   1      TM_Ack();
+ 147   1      TM_Stop();
+ 148   1      }
+ 149          
+ 150          //void Read_TM()
+ 151          //{
+ 152          ////数码管显示键盘扫描码
+ 153          //unsigned char a = 0;
+ 154          //unsigned char b = 0;
+ 155          //unsigned char c = 0;
+ 156          
+ 157          //TM_ReCmd();//TM1650读按键
+ 158          
+ 159          //a = key_data/100;
+ 160          //b = key_data/10%10;
+ 161          //c = key_data%10;
+ 162          //Dis_TM(dig1[0],dig1[a],dig1[b],dig2[c]); //数码管显示键盘扫描码
+ 163          //}
+ 164          
+ 165          void Read_TM()
+ 166          {
+ 167   1      //数码管显示按键位置
+ 168   1      unsigned char a = 0;
+ 169   1      unsigned char b = 0;
+ 170   1      
+ 171   1      TM_ReCmd();//TM1650读按键
+ 172   1      
+ 173   1      switch(key_data)
+ 174   1      {
+ 175   2      //第一行
+ 176   2      case 0x44: a = 1; b = 1; break;
+ 177   2      case 0x4c: a = 1; b = 2; break;
+ 178   2      case 0x54: a = 1; b = 3; break;
+C51 COMPILER V9.60.7.0   TM1650                                                            06/25/2024 17:45:06 PAGE 4   
+
+ 179   2      case 0x5c: a = 1; b = 4; break;
+ 180   2      case 0x64: a = 1; b = 5; break;
+ 181   2      case 0x6c: a = 1; b = 6; break;
+ 182   2      case 0x74: a = 1; b = 7; break;
+ 183   2      
+ 184   2      //第二行
+ 185   2      case 0x45: a = 2; b = 1; break;
+ 186   2      case 0x4d: a = 2; b = 2; break;
+ 187   2      case 0x55: a = 2; b = 3; break;
+ 188   2      case 0x5d: a = 2; b = 4; break;
+ 189   2      case 0x65: a = 2; b = 5; break;
+ 190   2      case 0x6d: a = 2; b = 6; break;
+ 191   2      case 0x75: a = 2; b = 7; break;
+ 192   2      
+ 193   2      //第三行
+ 194   2      case 0x46: a = 3; b = 1; break;
+ 195   2      case 0x4e: a = 3; b = 2; break;
+ 196   2      case 0x56: a = 3; b = 3; break;
+ 197   2      case 0x5e: a = 3; b = 4; break;
+ 198   2      case 0x66: a = 3; b = 5; break;
+ 199   2      case 0x6e: a = 3; b = 6; break;
+ 200   2      case 0x76: a = 3; b = 7; break;
+ 201   2      
+ 202   2      //第四行
+ 203   2      case 0x47: a = 4; b = 1; break;
+ 204   2      case 0x4f: a = 4; b = 2; break;
+ 205   2      case 0x57: a = 4; b = 3; break;
+ 206   2      case 0x5f: a = 4; b = 4; break;
+ 207   2      case 0x67: a = 4; b = 5; break;
+ 208   2      case 0x6f: a = 4; b = 6; break;
+ 209   2      case 0x77: a = 4; b = 7; break;
+ 210   2      
+ 211   2      default: a = 0; b = 0; break;
+ 212   2      }
+ 213   1      
+ 214   1      Dis_TM(0x00,dig1[a],dig1[10],dig1[b]); //数码管显示按键位置
+ 215   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    661    ----
+   CONSTANT SIZE    =     22    ----
+   XDATA SIZE       =      1       6
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

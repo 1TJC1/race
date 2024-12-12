@@ -1,0 +1,298 @@
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 16:46:00 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\LCD;.\LD3320) DEBUG OBJEC
+                    -TEXTEND PRINT(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*
+   2          
+   3            IRQ--P3.2     额外需要接一个
+   4          
+   5          */
+   6          #include "main.h"
+   7          #include "spi.h"
+   8          #include "lcd.h"
+   9          #include "lcd_init.h"
+  10          #include "LDChip.h"
+  11          #include "Reg_RW.h"
+  12          
+  13          
+  14          u8 nAsrStatus=0;
+  15          u8 nAsrRes=0;
+  16          bit flag=0;
+  17          
+  18          void GPIO_Init(void)
+  19          {
+  20   1        P0M1 = 0x00;//设置P0端口模式
+  21   1        P0M0 = 0xff;
+  22   1        
+  23   1        P1M1 = 0x00;//设置P1端口模式
+  24   1        P1M0 = 0x00;
+  25   1                    
+  26   1        P2M1 = 0x00;//设置P2端口模式
+  27   1        P2M0 = 0x00;
+  28   1                    
+  29   1        P3M1 = 0x00;//设置P3端口模式
+  30   1        P3M0 = 0x00;
+  31   1                    
+  32   1        P4M1 = 0x00;//设置P4端口模式
+  33   1        P4M0 = 0x00;
+  34   1                    
+  35   1        P5M1 = 0x00;//设置P5端口模式
+  36   1        P5M0 = 0x00;  
+  37   1      }
+  38          
+  39          void Timer0_Init(void)    //1毫秒@11.0592MHz
+  40          {
+  41   1        AUXR &= 0x7F;     //定时器时钟12T模式
+  42   1        TMOD &= 0xF0;     //设置定时器模式
+  43   1        TL0 = 0x66;       //设置定时初始值
+  44   1        TH0 = 0xFC;       //设置定时初始值
+  45   1        TF0 = 0;        //清除TF0标志
+  46   1        TR0 = 1;        //定时器0开始计时
+  47   1        ET0 = 1;        //使能定时器0中断
+  48   1      }
+  49          
+  50          void Uart1Init(void)    //9600bps@11.0592MHz
+  51          {
+  52   1        SCON = 0x50;    //8位数据,可变波特率
+  53   1        AUXR &= 0xBF;   //定时器时钟12T模式
+  54   1        AUXR &= 0xFE;   //串口1选择定时器1为波特率发生器
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 16:46:00 PAGE 2   
+
+  55   1        TMOD &= 0x0F;   //设置定时器模式
+  56   1        TL1 = 0xE8;     //设置定时初始值
+  57   1        TH1 = 0xFF;     //设置定时初始值
+  58   1        ET1 = 0;      //禁止定时器中断
+  59   1        TR1 = 1;      //定时器1开始计时
+  60   1        TI = 1;
+  61   1      } 
+  62          void delay(unsigned long uldata)
+  63          {
+  64   1        unsigned int j  =  0;
+  65   1        unsigned int g  =  0;
+  66   1        for (j=0;j<5;j++)
+  67   1        {
+  68   2          for (g=0;g<uldata;g++)
+  69   2          {
+  70   3            _nop_();
+  71   3            _nop_();
+  72   3            _nop_();
+  73   3          }
+  74   2        }
+  75   1      }
+  76          
+  77          /************************************************************************
+  78          功能描述：  运行ASR识别流程
+  79          入口参数：  none
+  80          返 回 值：  asrflag：1->启动成功， 0—>启动失败
+  81          其他说明：  识别顺序如下:
+  82                      1、RunASR()函数实现了一次完整的ASR语音识别流程
+  83                      2、LD_AsrStart() 函数实现了ASR初始化
+  84                      3、LD_AsrAddFixed() 函数实现了添加关键词语到LD3320芯片中
+  85                      4、LD_AsrRun()  函数启动了一次ASR语音识别流程         
+  86                      任何一次ASR识别流程，都需要按照这个顺序，从初始化开始
+  87          **************************************************************************/
+  88          u8 RunASR()
+  89          {
+  90   1        u8 i=0;
+  91   1        u8 asrflag=0;
+  92   1        for (i=0; i<5; i++)     //  防止由于硬件原因导致LD3320芯片工作不正常，所以一共尝试5次启动ASR识别流程
+  93   1        {
+  94   2          LD_AsrStart();
+  95   2          delay(10);
+  96   2          if (LD_AsrAddFixed()==0)
+  97   2          {
+  98   3            LD_Reset();     //  LD3320芯片内部出现不正常，立即重启LD3320芯片
+  99   3            delay(10);      //  并从初始化开始重新ASR识别流程
+ 100   3            continue;
+ 101   3          }
+ 102   2          delay(10);
+ 103   2          if (LD_AsrRun() == 0)
+ 104   2          {
+ 105   3            LD_Reset();     //  LD3320芯片内部出现不正常，立即重启LD3320芯片
+ 106   3            delay(10);      //  并从初始化开始重新ASR识别流程
+ 107   3            continue;
+ 108   3          }
+ 109   2          
+ 110   2          asrflag=1;
+ 111   2          break;          //  ASR流程启动成功，退出当前for循环。开始等待LD3320送出的中断信号
+ 112   2        }
+ 113   1        return asrflag;
+ 114   1      }
+ 115          /***********************************************************
+ 116          * 名    称：用户执行函数 
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 16:46:00 PAGE 3   
+
+ 117          * 功    能：识别成功后，执行动作可在此进行修改 
+ 118          * 入口参数： 无 
+ 119          * 出口参数：无
+ 120          * 说    明：           
+ 121          **********************************************************/
+ 122          void User_Modification(u8 dat)
+ 123          {
+ 124   1        if(dat ==0)
+ 125   1        {
+ 126   2          flag=1;
+ 127   2          printf("许彬收到\r\n");
+ 128   2        }
+ 129   1        else if(flag)
+ 130   1        {
+ 131   2          flag=0;
+ 132   2          switch(nAsrRes)      /*对结果执行相关操作,客户修改*/
+ 133   2          {
+ 134   3            case CODE_DMCS:     /*命令“代码测试”*/
+ 135   3                printf("\"代码测试\"识别成功\r\n"); /*text.....*/
+ 136   3                              break;
+ 137   3            case CODE_CSWB:     /*命令“测试完毕”*/
+ 138   3                printf("\"测试完毕\"识别成功\r\n"); /*text.....*/
+ 139   3                              break;
+ 140   3            
+ 141   3            case CODE_1KL1:  /*命令“北京”*/
+ 142   3                printf("\"北京\"识别成功\r\n"); /*text.....*/
+ 143   3                              break;
+ 144   3            case CODE_1KL2:   /*命令“上海”*/
+ 145   3          
+ 146   3                printf("\"上海\"识别成功\r\n"); /*text.....*/
+ 147   3                              break;
+ 148   3            case CODE_1KL3:  /*命令“开灯”*/
+ 149   3                printf("\"开灯\"识别成功\r\n"); /*text.....*/
+ 150   3                              break;
+ 151   3            case CODE_1KL4:   /*命令“关灯”*/        
+ 152   3                printf("\"关灯\"识别成功\r\n"); /*text.....*/
+ 153   3                              break;
+ 154   3            
+ 155   3            case CODE_2KL1:  /*命令“....”*/
+ 156   3                printf("\"广州\"识别成功\r\n"); /*text.....*/
+ 157   3                              break;
+ 158   3            case CODE_2KL2:  /*命令“....”*/
+ 159   3                printf("\"深圳\"识别成功\r\n"); /*text.....*/
+ 160   3                              break;
+ 161   3            case CODE_2KL3:  /*命令“....”*/
+ 162   3                printf("\"向左转\"识别成功\r\n"); /*text.....*/
+ 163   3                              break;
+ 164   3            case CODE_2KL4:  /*命令“....”*/
+ 165   3                printf("\"向右转\"识别成功\r\n"); /*text.....*/
+ 166   3                                    break;
+ 167   3                  
+ 168   3            case CODE_3KL1:  /*命令“....”*/
+ 169   3                printf("\"打开空调\"识别成功\r\n"); /*text.....*/
+ 170   3                              break;
+ 171   3            case CODE_3KL2:  /*命令“....”*/
+ 172   3                printf("\"关闭空调\"识别成功\r\n"); /*text.....*/
+ 173   3                              break;
+ 174   3            case CODE_5KL1:  /*命令“....”*/
+ 175   3                printf("\"后退\"识别成功"); /*text.....*/
+ 176   3                              break;
+ 177   3        //    case CODE_3KL4:  /*命令“....”*/
+ 178   3        //        printf("\"代码测试\"识别成功"); /*text.....*/
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 16:46:00 PAGE 4   
+
+ 179   3        //                      break;
+ 180   3        //          
+ 181   3        //          case CODE_4KL1:  /*命令“....”*/
+ 182   3        //              printf("O"); /*text.....*/
+ 183   3        //                            break;
+ 184   3        //          case CODE_4KL2:  /*命令“....”*/
+ 185   3        //              printf("P"); /*text.....*/
+ 186   3        //                            break;
+ 187   3        //          case CODE_4KL3:  /*命令“....”*/
+ 188   3        //              printf("Q"); /*text.....*/
+ 189   3        //                            break;
+ 190   3        //          case CODE_4KL4:  /*命令“....”*/
+ 191   3        //              printf("R"); /*text.....*/
+ 192   3        //                            break;
+ 193   3            
+ 194   3            default:
+ 195   3              break;
+ 196   3          }
+ 197   2        }
+ 198   1        else  
+ 199   1        {
+ 200   2          printf("请说出一级口令\r\n"); /*text.....*/ 
+ 201   2        }
+ 202   1      }
+ 203          
+ 204          void main()
+ 205          {
+ 206   1        GPIO_Init();
+ 207   1        Timer0_Init();
+ 208   1        Uart1Init();
+ 209   1        IT0 = 1;                    //设置INT0的中断类型 (1:仅下降沿 0:上升沿和下降沿)
+ 210   1        EX0 = 1;                    //使能INT0中断
+ 211   1        EA = 1;
+ 212   1        LD_Reset();
+ 213   1        nAsrStatus = LD_ASR_NONE;   //  初始状态：没有在作ASR
+ 214   1        SCS=0;
+ 215   1        SPI_Init();
+ 216   1        LCD_Init();//LCD初始化
+ 217   1        LCD_Clear1(BLACK);
+ 218   1        while(1)
+ 219   1        {
+ 220   2          switch(nAsrStatus)
+ 221   2          {
+ 222   3            case LD_ASR_RUNING:
+ 223   3            case LD_ASR_ERROR:  
+ 224   3                 break;
+ 225   3            case LD_ASR_NONE:
+ 226   3            {
+ 227   4              nAsrStatus=LD_ASR_RUNING;
+ 228   4              if (RunASR()==0)  /*  启动一次ASR识别流程：ASR初始化，ASR添加关键词语，启动ASR运算*/
+ 229   4              {
+ 230   5                nAsrStatus = LD_ASR_ERROR;
+ 231   5              }
+ 232   4              break;
+ 233   4            }
+ 234   3      
+ 235   3            case LD_ASR_FOUNDOK: /* 一次ASR识别流程结束，去取ASR识别结果*/
+ 236   3            {
+ 237   4              nAsrRes = LD_GetResult();   /*获取结果*/                        
+ 238   4              User_Modification(nAsrRes);
+ 239   4              nAsrStatus = LD_ASR_NONE;
+ 240   4              break;
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 16:46:00 PAGE 5   
+
+ 241   4            }
+ 242   3            case LD_ASR_FOUNDZERO:
+ 243   3            default:
+ 244   3            {
+ 245   4              nAsrStatus = LD_ASR_NONE;
+ 246   4              break;
+ 247   4            }
+ 248   3          } 
+ 249   2        }
+ 250   1      }
+ 251          
+ 252          void Timer0_Isr(void) interrupt 1
+ 253          {
+ 254   1        static unsigned int count1 = 0;
+ 255   1        if (++count1 >= 1000)
+ 256   1        {
+ 257   2          LED8 = ~LED8;
+ 258   2          count1 = 0;
+ 259   2        }
+ 260   1      }
+ 261          void ExtInt0Handler(void) interrupt 0  
+ 262          {   
+ 263   1        ProcessInt0();        //  LD3320 送出中断信号，包括ASR和播放MP3的中断，需要在中断处理函数中分别处理
+ 264   1      }
+ 265          
+ 266          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    662    ----
+   CONSTANT SIZE    =    267    ----
+   XDATA SIZE       =      4      10
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

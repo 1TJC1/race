@@ -1,0 +1,478 @@
+C51 COMPILER V9.60.7.0   LD3320                                                            07/04/2024 17:04:13 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE LD3320
+OBJECT MODULE PLACED IN .\Objects\LD3320.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE LD3320\LD3320.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\LD3320) DEBUG OB
+                    -JECTEXTEND PRINT(.\Listings\LD3320.lst) OBJECT(.\Objects\LD3320.obj)
+
+line level    source
+
+   1          #include "LD3320.h"
+   2          
+   3          unsigned char nAsrStatus = 0;
+   4          unsigned char nLD_Mode = LD_MODE_IDLE;//用来记录当前是在进行ASR识别还是在播放MP3
+   5          unsigned char ucRegVal;
+   6          unsigned char nAsrRes = 0;
+   7          
+   8          unsigned char text_flag[10];
+   9          unsigned char exti_flag = 0;
+  10          
+  11          unsigned char flag = 0;
+  12          unsigned char nAsrResCount = 0;
+  13          void Delay10ms()                //@11.0592MHz
+  14          {
+  15   1              unsigned char i, j;
+  16   1      
+  17   1              i = 108;
+  18   1              j = 145;
+  19   1              do
+  20   1              {
+  21   2                      while (--j);
+  22   2              } while (--i);
+  23   1      }
+  24          void LD_WriteReg(unsigned char address, unsigned char dataout)          //SPI写数据
+  25          {
+  26   1          unsigned char i = 0;
+  27   1          unsigned char command = 0x04;
+  28   1          CS_L();
+  29   1          DELAY_NOP();
+  30   1          CLK_H();
+  31   1          //write command
+  32   1          for(i = 0; i < 8; i++) {
+  33   2              if((command & 0x80) == 0x80)
+  34   2                  SDI_H();
+  35   2              else
+  36   2                  SDI_L();
+  37   2      
+  38   2              DELAY_NOP();
+  39   2              CLK_L();
+  40   2              command = (command << 1);
+  41   2              DELAY_NOP();
+  42   2              CLK_H();
+  43   2          }
+  44   1          //write address
+  45   1          for(i = 0; i < 8; i++) {
+  46   2              if((address & 0x80) == 0x80)
+  47   2                  SDI_H();
+  48   2              else
+  49   2                  SDI_L();
+  50   2              DELAY_NOP();
+  51   2              CLK_L();
+  52   2              address = (address << 1);
+  53   2              DELAY_NOP();
+  54   2              CLK_H();
+C51 COMPILER V9.60.7.0   LD3320                                                            07/04/2024 17:04:13 PAGE 2   
+
+  55   2          }
+  56   1          //write data
+  57   1          for(i = 0; i < 8; i++) {
+  58   2              if((dataout & 0x80) == 0x80)
+  59   2                  SDI_H();
+  60   2              else
+  61   2                  SDI_L();
+  62   2              DELAY_NOP();
+  63   2              CLK_L();
+  64   2              dataout = (dataout << 1);
+  65   2              DELAY_NOP();
+  66   2              CLK_H();
+  67   2          }
+  68   1          DELAY_NOP();
+  69   1          CS_H();
+  70   1      }
+  71          
+  72          unsigned char LD_ReadReg(unsigned char address)         //SPI读数据
+  73          {
+  74   1          unsigned char i = 0;
+  75   1          unsigned char datain = 0 ;
+  76   1          unsigned char temp = 0;
+  77   1          unsigned char command = 0x05;
+  78   1          CS_L();
+  79   1          DELAY_NOP();
+  80   1          CLK_H();
+  81   1          //write command
+  82   1          for(i = 0; i < 8; i++) {
+  83   2              if((command & 0x80) == 0x80)
+  84   2                  SDI_H();
+  85   2              else
+  86   2                  SDI_L();
+  87   2              DELAY_NOP();
+  88   2              CLK_L();
+  89   2              command = (command << 1);
+  90   2              DELAY_NOP();
+  91   2              CLK_H();
+  92   2          }
+  93   1      
+  94   1          //write address
+  95   1          for(i = 0; i < 8; i++) {
+  96   2              if((address & 0x80) == 0x80)
+  97   2                  SDI_H();
+  98   2              else
+  99   2                  SDI_L();
+ 100   2              DELAY_NOP();
+ 101   2              CLK_L();
+ 102   2              address = (address << 1);
+ 103   2              DELAY_NOP();
+ 104   2              CLK_H();
+ 105   2          }
+ 106   1          DELAY_NOP();
+ 107   1      
+ 108   1          //Read data
+ 109   1          for(i = 0; i < 8; i++) {
+ 110   2              datain = (datain << 1);
+ 111   2              temp = READ_SDO();
+ 112   2              DELAY_NOP();
+ 113   2              CLK_L();
+ 114   2              if(temp == 1)
+ 115   2                  datain |= 0x01;
+ 116   2              DELAY_NOP();
+C51 COMPILER V9.60.7.0   LD3320                                                            07/04/2024 17:04:13 PAGE 3   
+
+ 117   2              CLK_H();
+ 118   2          }
+ 119   1      
+ 120   1          DELAY_NOP();
+ 121   1          CS_H();
+ 122   1          return datain;
+ 123   1      }
+ 124          
+ 125          static void LD_Init_Common(void)
+ 126          {
+ 127   1          LD_ReadReg(0x06);
+ 128   1          LD_WriteReg(0x17, 0x35);
+ 129   1          Delay10ms();
+ 130   1          LD_ReadReg(0x06);
+ 131   1      
+ 132   1          LD_WriteReg(0x89, 0x03);
+ 133   1          Delay10ms();
+ 134   1          LD_WriteReg(0xCF, 0x43);
+ 135   1          Delay10ms();
+ 136   1          LD_WriteReg(0xCB, 0x02);
+ 137   1      
+ 138   1          /*PLL setting*/
+ 139   1          LD_WriteReg(0x11, LD_PLL_11);
+ 140   1          if(nLD_Mode == LD_MODE_MP3) {
+ 141   2          } else {
+ 142   2              LD_WriteReg(0x1E, 0x00);
+ 143   2              LD_WriteReg(0x19, LD_PLL_ASR_19);
+ 144   2              LD_WriteReg(0x1B, LD_PLL_ASR_1B);
+ 145   2              LD_WriteReg(0x1D, LD_PLL_ASR_1D);
+ 146   2          }
+ 147   1          Delay10ms();
+ 148   1      
+ 149   1          LD_WriteReg(0xCD, 0x04);
+ 150   1          LD_WriteReg(0x17, 0x4c);
+ 151   1          Delay10ms();
+ 152   1          LD_WriteReg(0xB9, 0x00);
+ 153   1          LD_WriteReg(0xCF, 0x4F);
+ 154   1      //      LD_WriteReg(0x6F, 0xFF);
+ 155   1      }
+ 156          
+ 157          static void LD_Init_ASR(void)
+ 158          {
+ 159   1          nLD_Mode = LD_MODE_ASR_RUN;
+ 160   1          LD_Init_Common();
+ 161   1      
+ 162   1          LD_WriteReg(0xBD, 0x00);
+ 163   1          LD_WriteReg(0x17, 0x48);
+ 164   1          Delay10ms();
+ 165   1          LD_WriteReg(0x3C, 0x80);
+ 166   1          LD_WriteReg(0x3E, 0x07);
+ 167   1          LD_WriteReg(0x38, 0xff);
+ 168   1          LD_WriteReg(0x3A, 0x07);
+ 169   1      
+ 170   1          LD_WriteReg(0x40, 0);
+ 171   1          LD_WriteReg(0x42, 8);
+ 172   1          LD_WriteReg(0x44, 0);
+ 173   1          LD_WriteReg(0x46, 8);
+ 174   1          Delay10ms();
+ 175   1      }
+ 176          
+ 177          
+ 178          unsigned char LD_Check_ASRBusyFlag_b2(void)
+C51 COMPILER V9.60.7.0   LD3320                                                            07/04/2024 17:04:13 PAGE 4   
+
+ 179          {
+ 180   1          unsigned char j;
+ 181   1          unsigned char flag = 0;
+ 182   1          for(j = 0; j < 10; j++) {
+ 183   2              if(LD_ReadReg(0xb2) == 0x21) {
+ 184   3                  flag = 1;
+ 185   3                  break;
+ 186   3              }
+ 187   2              Delay10ms();
+ 188   2          }
+ 189   1          return flag;
+ 190   1      }
+ 191          
+ 192          static unsigned char LD_AsrAddFixed(void)
+ 193          {
+ 194   1          unsigned char k, flag;
+ 195   1          unsigned char nAsrAddLength;
+ 196   1      #define DATE_A 5    //数组二维数值
+ 197   1      #define DATE_B 20               //数组一维数值
+ 198   1          //添加关键词，用户修改
+ 199   1          unsigned char  sRecog[DATE_A][DATE_B] = {
+ 200   1              "kai deng", \
+ 201   1              "guan deng", \
+ 202   1              "an jian chu fa", \
+ 203   1              "quan mie", \
+ 204   1              "zhuang tai"\
+ 205   1      
+ 206   1          };
+ 207   1          unsigned char  pCode[DATE_A] = {
+ 208   1              CODE_KD,        \
+ 209   1              CODE_SS,        \
+ 210   1              CODE_AJCF, \
+ 211   1              CODE_QM,        \
+ 212   1              CODE_JT         \
+ 213   1          };  //添加识别码，用户修改
+ 214   1          flag = 1;
+ 215   1          for(k = 0; k < DATE_A; k++) {
+ 216   2              if(LD_Check_ASRBusyFlag_b2() == 0) {
+ 217   3                  flag = 0;
+ 218   3                  break;
+ 219   3              }
+ 220   2      
+ 221   2              LD_WriteReg(0xc1, pCode[k]);
+ 222   2              LD_WriteReg(0xc3, 0);
+ 223   2              LD_WriteReg(0x08, 0x04);
+ 224   2              Delay10ms();
+ 225   2              LD_WriteReg(0x08, 0x00);
+ 226   2              Delay10ms();
+ 227   2      
+ 228   2              for(nAsrAddLength = 0; nAsrAddLength < DATE_B; nAsrAddLength++) {
+ 229   3                  if(sRecog[k][nAsrAddLength] == 0)
+ 230   3                      break;
+ 231   3                  LD_WriteReg(0x5, sRecog[k][nAsrAddLength]);
+ 232   3              }
+ 233   2              LD_WriteReg(0xb9, nAsrAddLength);
+ 234   2              LD_WriteReg(0xb2, 0xff);
+ 235   2              LD_WriteReg(0x37, 0x04);
+ 236   2          }
+ 237   1          return flag;
+ 238   1      }
+ 239          
+ 240          static void LD_reset(void)
+C51 COMPILER V9.60.7.0   LD3320                                                            07/04/2024 17:04:13 PAGE 5   
+
+ 241          {
+ 242   1          RST_H();
+ 243   1          Delay10ms();
+ 244   1          RST_L();
+ 245   1          Delay10ms();
+ 246   1          RST_H();
+ 247   1          Delay10ms();
+ 248   1          CS_L();
+ 249   1          Delay10ms();
+ 250   1          CS_H();
+ 251   1          Delay10ms();
+ 252   1      }
+ 253          
+ 254          static unsigned char LD_AsrRun(void)
+ 255          {
+ 256   1          LD_WriteReg(0x35, MIC_VOL);
+ 257   1          LD_WriteReg(0x1C, 0x09);
+ 258   1          LD_WriteReg(0xBD, 0x20);
+ 259   1          LD_WriteReg(0x08, 0x01);
+ 260   1          Delay10ms();
+ 261   1          LD_WriteReg(0x08, 0x00);
+ 262   1          Delay10ms();
+ 263   1      
+ 264   1          if(LD_Check_ASRBusyFlag_b2() == 0) {
+ 265   2              return 0;
+ 266   2          }
+ 267   1      
+ 268   1          LD_WriteReg(0xB2, 0xff);
+ 269   1          LD_WriteReg(0x37, 0x06);
+ 270   1          LD_WriteReg(0x37, 0x06);
+ 271   1          Delay10ms();
+ 272   1      //      text_flag[1]=LD_ReadReg(0xbf);
+ 273   1          LD_WriteReg(0x1C, 0x0b);
+ 274   1          LD_WriteReg(0x29, 0x10);
+ 275   1          LD_WriteReg(0xBD, 0x00);
+ 276   1          return 1;
+ 277   1      }
+ 278          
+ 279          static unsigned char RunASR(void)
+ 280          {
+ 281   1          unsigned char i = 0;
+ 282   1          unsigned char asrflag = 0;
+ 283   1          for(i = 0; i < 5; i++) {    //防止由于硬件原因导致LD3320芯片工作不正常，所以一共尝试5次启动ASR识别流程
+ 284   2              LD_Init_ASR();                  //初始化ASR
+ 285   2              Delay10ms();
+ 286   2              if(LD_AsrAddFixed() == 0) {     //添加关键词语到LD3320芯片中
+ 287   3                  LD_reset();                         //LD3320芯片内部出现不正常，立即重启LD3320芯片
+ 288   3                  Delay10ms();        //并从初始化开始重新ASR识别流程
+ 289   3                  continue;
+ 290   3              }
+ 291   2      //              text_flag[0]=LD_ReadReg(0xbf);
+ 292   2              Delay10ms();
+ 293   2              if(LD_AsrRun() == 0) {
+ 294   3                  LD_reset();                  //LD3320芯片内部出现不正常，立即重启LD3320芯片
+ 295   3                  Delay10ms();//并从初始化开始重新ASR识别流程
+ 296   3                  continue;
+ 297   3              }
+ 298   2              asrflag = 1;
+ 299   2              break;                                          //ASR流程启动成功，退出当前for循环。开始等待LD3320送出的中断信号
+ 300   2          }
+ 301   1          return asrflag;
+ 302   1      }
+C51 COMPILER V9.60.7.0   LD3320                                                            07/04/2024 17:04:13 PAGE 6   
+
+ 303          
+ 304          static unsigned char LD_GetResult(void)
+ 305          {
+ 306   1          return LD_ReadReg(0xc5);
+ 307   1      }
+ 308          unsigned char text1_flag = 0;
+ 309          
+ 310          void tiaoshi()
+ 311          {
+ 312   1          LD_ReadReg(0x06);
+ 313   1          LD_WriteReg(0x35, 0x33);
+ 314   1          LD_WriteReg(0x1b, 0x55);
+ 315   1          LD_WriteReg(0xb3, 0xaa);
+ 316   1          text_flag[0] = LD_ReadReg(0x35);
+ 317   1          text_flag[1] = LD_ReadReg(0x1b);
+ 318   1          text_flag[2] = LD_ReadReg(0xb3);
+ 319   1      }
+ 320          
+ 321          unsigned char LD_Check_ASR(void)
+ 322          {
+ 323   1          unsigned char j;
+ 324   1          unsigned char flag = 0;
+ 325   1      
+ 326   1          for(j = 0; j < 10; j++) {
+ 327   2              if(LD_ReadReg(0xb2) == 0x21) {
+ 328   3                  flag = 1;
+ 329   3                  break;
+ 330   3              }
+ 331   2              Delay10ms();
+ 332   2          }
+ 333   1          return flag;
+ 334   1      }
+ 335          
+ 336          void LD3320_main(void)
+ 337          {
+ 338   1          LD_reset();
+ 339   1          nAsrStatus = LD_ASR_NONE;//初始状态：没有在作ASR
+ 340   1          Delay10ms();
+ 341   1      //    tiaoshi();
+ 342   1      //    text_flag[9] = LD_ReadReg(0xb2);
+ 343   1          while(1) {
+ 344   2                                      if(nAsrStatus != LD_ASR_NONE)  //查询方式
+ 345   2                                      {
+ 346   3                                              flag = LD_Check_ASR();
+ 347   3                                      }else
+ 348   2                                      {
+ 349   3                                              flag = 0;
+ 350   3                                      }
+ 351   2                                      if(flag == 1)  //有识别到语句
+ 352   2                                      {
+ 353   3                                              nAsrResCount = LD_ReadReg(0xba);
+ 354   3      
+ 355   3                                              if(nAsrResCount > 0 && nAsrResCount <= 4) {
+ 356   4                                                              nAsrStatus = LD_ASR_FOUNDOK;
+ 357   4                                              } else {
+ 358   4                                                              nAsrStatus = LD_ASR_FOUNDZERO;
+ 359   4                                              }
+ 360   3                                      }
+ 361   2                                      
+ 362   2                                      
+ 363   2              switch(nAsrStatus) {
+ 364   3              case LD_ASR_RUNING:
+C51 COMPILER V9.60.7.0   LD3320                                                            07/04/2024 17:04:13 PAGE 7   
+
+ 365   3              case LD_ASR_ERROR:
+ 366   3                  break;
+ 367   3              case LD_ASR_NONE:
+ 368   3                  nAsrStatus = LD_ASR_RUNING;
+ 369   3                  if(RunASR() == 0) { //启动一次ASR识别流程：ASR初始化，ASR添加关键词语，启动ASR运算
+ 370   4                      nAsrStatus = LD_ASR_ERROR;
+ 371   4                  }
+ 372   3                  break;
+ 373   3              case LD_ASR_FOUNDOK:
+ 374   3                  nAsrRes = LD_GetResult(); //一次ASR识别流程结束，去取ASR识别结果
+ 375   3      
+ 376   3                  switch(nAsrRes) {                           //对结果执行相关操作,客户修改
+ 377   4                  case CODE_KD://命令“开灯”
+ 378   4                      LED1_ON();
+ 379   4      //                printf("开灯\r\n");
+ 380   4      
+ 381   4                      break;
+ 382   4                  case CODE_SS:       //命令“关灯”
+ 383   4                    
+ 384   4                      LED1_OFF();
+ 385   4      //                printf("关灯\r\n");
+ 386   4                      break;
+ 387   4                  case CODE_AJCF:                                     //命令“按键触发”
+ 388   4                      break;
+ 389   4                  case CODE_QM:                                               //命令“全灭”
+ 390   4                      break;
+ 391   4                  case CODE_JT:                                               //命令“状态”
+ 392   4      
+ 393   4                  default:
+ 394   4                      break;
+ 395   4                  }
+ 396   3      
+ 397   3                  nAsrStatus = LD_ASR_NONE;
+ 398   3                  break;
+ 399   3              case LD_ASR_FOUNDZERO:
+ 400   3              default:
+ 401   3                  nAsrStatus = LD_ASR_NONE;
+ 402   3                  break;
+ 403   3              }
+ 404   2          }
+ 405   1      }
+ 406          
+ 407          void zhongduan()
+ 408          {
+ 409   1          unsigned char nAsrResCount = 0;
+ 410   1          exti_flag += 1;
+ 411   1          
+ 412   1          ucRegVal = LD_ReadReg(0x2B);
+ 413   1      
+ 414   1      // 语音识别产生的中断
+ 415   1      //（有声音输入，不论识别成功或失败都有中断）
+ 416   1          LD_WriteReg(0x29, 0) ;
+ 417   1          LD_WriteReg(0x02, 0) ;
+ 418   1      
+ 419   1          if((ucRegVal & 0x10) && LD_ReadReg(0xb2) == 0x21 && LD_ReadReg(0xbf) == 0x35) {
+ 420   2              nAsrResCount = LD_ReadReg(0xba);
+ 421   2      
+ 422   2              if(nAsrResCount > 0 && nAsrResCount <= 4) {
+ 423   3                  nAsrStatus = LD_ASR_FOUNDOK;
+ 424   3              } else {
+ 425   3                  nAsrStatus = LD_ASR_FOUNDZERO;
+ 426   3              }
+C51 COMPILER V9.60.7.0   LD3320                                                            07/04/2024 17:04:13 PAGE 8   
+
+ 427   2          } else {
+ 428   2              nAsrStatus = LD_ASR_FOUNDZERO; //执行没有识别
+ 429   2          }
+ 430   1      
+ 431   1          LD_WriteReg(0x2b, 0);
+ 432   1          LD_WriteReg(0x1C, 0); //写0:ADC不可用
+ 433   1          LD_WriteReg(0x29, 0);
+ 434   1          LD_WriteReg(0x02, 0);
+ 435   1          LD_WriteReg(0x2B, 0);
+ 436   1          LD_WriteReg(0xBA, 0);
+ 437   1          LD_WriteReg(0xBC, 0);
+ 438   1          LD_WriteReg(0x08, 1); //清除FIFO_DATA
+ 439   1          LD_WriteReg(0x08, 0); //清除FIFO_DATA后 再次写0
+ 440   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1194    ----
+   CONSTANT SIZE    =    105    ----
+   XDATA SIZE       =     18     110
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

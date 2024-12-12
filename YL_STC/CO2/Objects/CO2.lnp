@@ -1,0 +1,7 @@
+".\Objects\main.obj",
+".\Objects\spi.obj",
+".\Objects\lcd.obj",
+".\Objects\lcd_init.obj",
+".\Objects\uart2.obj" 
+TO ".\Objects\CO2" 
+PRINT(".\Listings\CO2.m51") RAMSIZE(256) 

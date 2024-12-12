@@ -1,0 +1,21 @@
+<html>
+<body>
+<pre>
+<h1>礦ision Build Log</h1>
+<h2>Project:</h2>
+D:\2023\2023\YLpi\program_stc\program_02\YL_STC\E01彩灯控制模块 - 多个灯\E01彩灯控制模块 - 多个灯\E01.uvproj
+Project File Date:  05/04/2024
+
+<h2>Output:</h2>
+Build target 'Target 1'
+compiling main.c...
+linking...
+Program Size: data=11.0 xdata=26 code=901
+creating hex file from ".\Objects\E01"...
+".\Objects\E01" - 0 Error(s), 0 Warning(s).
+Build target 'Target 1'
+compiling main.c...
+linking...
+Program Size: data=11.0 xdata=26 code=901
+creating hex file from ".\Objects\E01"...
+".\Objects\E01" - 0 Error(s), 0 Warning(s).

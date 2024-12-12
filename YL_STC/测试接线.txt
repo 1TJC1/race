@@ -1,0 +1,109 @@
+C01:温湿度：
+	SCL1->P20
+	SDA1->P21
+C02:光照度
+	SCL1->P20
+	SDA1->P21
+C03:空气质量
+	SCL1->P20
+	SDA1->P21
+C04:人体热释电
+	OUT->P15
+C05:烟雾
+	OUT1->P13
+	ADC1->P14
+C06:火焰
+	OUT1->P13
+	ADC1->P14
+C09:称重传感器模块
+	SCK1->P20
+	DAT1->P21
+C10-噪声检测传感器模块
+	ADC->P17
+C11-超声波传感器模块
+	Trig->P20
+	Echo->P21
+CO2传感器模块
+	RX1 -> P11
+	TX1 -> P10
+PM2.5传感器模块
+	RX1 -> P11
+	TX1 -> P10
+D01- RFID读写模块:用串口测试，波特率115200bps@11.0592MHz
+	spi_cs	->P1^3
+	spi_rst	->P1^4
+	spi_ck	->P1^5
+	spi_mosi->P1^7
+	spi_miso->P1^6
+D02-语音合成模块
+	RX1 -> P11
+	TX1 -> P10	
+D03-语音识别模块:用串口测试，波特率9600bps@11.0592MHz
+	SDCK P22
+	SDO  P23
+	SDI  P24
+	SCS  P20
+	RSTB P21 
+
+E01彩灯控制模块  //@27.000MHz
+	IN->P15
+
+E02-电机驱动模块_E04-直流电机模块
+	PWMA->P25
+	PWMB->P26
+
+E02-电机驱动模块_E03-风扇模块  按KEY1键操作
+	PWMA->P13
+	PWMB->P14
+
+E05-继电器模块 按KEY1键操作
+	KA ->  P15
+
+E06-1LED灯珠模块
+	LED_DIM->P15
+
+E06-LED灯珠 KEY1 KEY2按键进行操作
+	LED1-LED5 -> P13-P17
+
+E07-oled显示模块
+	SCL1->P13
+	SDA1->P14
+
+E08-矩阵键盘
+	CLK->P13
+	DAT->P14
+
+E10-蜂鸣器模块  KEY1 KEY2按键进行操作
+	BEEP P17
+	PWM  P16
+
+E11-数码管显示模块
+	SER  = P1^7;
+	SCLK = P1^6;
+	RCLK = P1^4;
+
+E12-光耦输入模块
+
+
+E14-舵机控制模块
+	PWM=P1^5;
+
+E16-触摸按键模块
+	MOTOR	P13
+	TOUCH1	P14
+	TOUCH2	P15
+	TOUCH3	P16
+	TOUCH4	P17
+
+B01-wifi:修改SendString("AT+CWJAP=\"YLZN7777\",\"12456789\"\r\n");改成自己所要连接的路由器，打开网络调试助手，设置服务器IP和端口号，修改SendString("AT+CIPSTART=\"TCP\",\"192.168.100.25\",8234\r\n");，改成电脑的服务器和端口号，效果为循环发送hello world
+	RX1 -> P11
+	TX1 -> P10
+B02-lora:这里用到两个主机和两个lora模块，LORA模块设置配对完成后（默认出厂都是配对完成的）；按下一个模块的KEY1,另一个模块的LED3会取反
+	RX1 -> P11
+	TX1 -> P10
+
+B04-ZIGBEE:这里用到两个主机和两个zigbee模块，一个zigbee的num_gw=3，Target_zigbee.zigbee_ip=0x1002；另一个zigbee的num_gw=2，Target_zigbee.zigbee_ip=0x1003；按下一个模块的KEY1,另一个模块的LED3会取反
+	RX1 -> P11
+	TX1 -> P10
+
+

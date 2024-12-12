@@ -1,0 +1,957 @@
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE RC522
+OBJECT MODULE PLACED IN .\Objects\rc522.obj
+COMPILER INVOKED BY: D:\software\KEIL4\C51\BIN\C51.EXE rc522.c LARGE BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\rc522.ls
+                    -t) OBJECT(.\Objects\rc522.obj)
+
+line level    source
+
+   1          #include "rc522.h"
+   2          #include "delay.h"
+   3          #include "usart.h"
+   4           
+   5           
+   6          //
+   7          // M1¿¨·ÖÎª16¸öÉÈÇø£¬Ã¿¸öÉÈÇøÓÉËÄ¸ö¿é£¨¿é0¡¢¿é1¡¢¿é2¡¢¿é3£©×é³É
+   8          // ½«16¸öÉÈÇøµÄ64¸ö¿é°´¾ø¶ÔµØÖ·±àºÅÎª£º0~63
+   9          // µÚ0¸öÉÈÇøµÄ¿é0£¨¼´¾ø¶ÔµØÖ·0¿é£©£¬ÓÃÓÚ´æ·Å³§ÉÌ´úÂë£¬ÒÑ¾­¹Ì»¯²»¿É¸ü¸Ä 
+  10          // Ã¿¸öÉÈÇøµÄ¿é0¡¢¿é1¡¢¿é2ÎªÊý¾Ý¿é£¬¿ÉÓÃÓÚ´æ·ÅÊý¾Ý
+  11          // Ã¿¸öÉÈÇøµÄ¿é3Îª¿ØÖÆ¿é£¨¾ø¶ÔµØÖ·Îª:¿é3¡¢¿é7¡¢¿é11.....£©°üÀ¨ÃÜÂëA£¬´æÈ¡¿ØÖÆ¡¢ÃÜÂëBµÈ
+  12           
+  13          /*******************************
+  14          *Á¬ÏßËµÃ÷£º
+  15          *1--SDA  <----->PB12
+  16          *2--SCK  <----->PB13
+  17          *3--MOSI <----->PB15
+  18          *4--MISO <----->PB14
+  19          *5--Ðü¿Õ
+  20          *6--GND <----->GND
+  21          *7--RST <----->PA8
+  22          *8--VCC <----->VCC
+  23          ************************************/
+  24           
+  25          /*È«¾Ö±äÁ¿*/
+  26          unsigned char CT[2];//¿¨ÀàÐÍ
+  27          unsigned char SN[4]; //¿¨ºÅ£¨µÍ×Ö½ÚÔÚÇ°£¬¸ß×Ö½ÚÔÚºó£©
+  28          unsigned char RFID[16];                 //´æ·ÅRFID 
+  29          unsigned char RFWRITE[16]={0x00,0x01,0x02,0x03,0x00,0x01,0x02,0x03,0x00,0x01,0x02,0x03,0x00,0x01,0x02,0x03
+             -};
+  30          unsigned char lxl_bit=0;
+  31          unsigned char card1_bit=0;
+  32          unsigned char card2_bit=0;
+  33          unsigned char card3_bit=0;
+  34          unsigned char card4_bit=0;
+  35          unsigned char total=0;
+  36          unsigned char lxl[4]={196,58,104,217};
+  37          unsigned char card_1[4]={83,106,11,1};
+  38          unsigned char card_2[4]={208,121,31,57};
+  39          unsigned char card_3[4]={176,177,143,165};
+  40          unsigned char card_4[4]={5,158,10,136};
+  41          u8 KEY[6]={0xff,0xff,0xff,0xff,0xff,0xff};
+  42          u8 AUDIO_OPEN[6] = {0xAA, 0x07, 0x02, 0x00, 0x09, 0xBC};
+  43          unsigned char RFID1[16]={0x00,0x00,0x00,0x00,0x00,0x00,0xff,0x07,0x80,0x29,0xff,0xff,0xff,0xff,0xff,0xff};
+  44          /*º¯ÊýÉùÃ÷*/
+  45          unsigned char status;
+  46          unsigned char s=0x08;
+  47           
+  48           
+  49          #define   RC522_DELAY()  delay_us( 20 )
+  50           
+  51           
+  52          void RC522_Handel(void)
+  53          {
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 2   
+
+  54   1                      unsigned int i=0;
+  55   1                      u32 card_number_D=0;    //¿¨ºÅ
+  56   1          status = PcdRequest(PICC_REQALL,CT);//Ñ°¿¨
+  57   1          
+  58   1      //    printf("\r\nstatus>>>>>>%d\r\n", status);
+  59   1          
+  60   1          if(status==MI_OK)//Ñ°¿¨³É¹¦
+  61   1          {
+  62   2      //                               printf("\r\nÑ°¿¨³É¹¦\r\n");
+  63   2               status=MI_ERR;
+  64   2               status = PcdAnticoll(SN);//·À³å×²             
+  65   2          }
+  66   1       
+  67   1          if (status==MI_OK)//·ÀÐn×²³É¹¦
+  68   1          {
+  69   2              status=MI_ERR;          
+  70   2                                      printf("%c", SN[0]);
+  71   2                                      printf("%c", SN[1]);
+  72   2                                      printf("%c", SN[2]);
+  73   2                                      printf("%c", SN[3]);
+  74   2                                      card_number_D=(SN[2]<<16)+(SN[1]<<8)+(SN[0]);   //»ñÈ¡Ó¡Ë¢¿¨ºÅ
+  75   2      //                              printf("\r\n¿¨ºÅ£º[%d]\r\n",card_number_D);
+  76   2       
+  77   2      //      ShowID(0,200,SN,BLUE,WHITE); //ÔÚÒº¾§ÆÁÉÏÏÔÊ¾¿¨µÄIDºÅ
+  78   2              
+  79   2              if((SN[0]==lxl[0])&&(SN[1]==lxl[1])&&(SN[2]==lxl[2])&&(SN[3]==lxl[3]))
+  80   2              {
+  81   3                  lxl_bit=1;
+  82   3                  printf("\r\nThe User is:card_0\r\n");
+  83   3                  
+  84   3              }
+  85   2              if((SN[0]==card_1[0])&&(SN[1]==card_1[1])&&(SN[2]==card_1[2])&&(SN[3]==card_1[3]))
+  86   2              {
+  87   3                  card1_bit=1;
+  88   3                  printf("\r\nThe User is:card_1\r\n");
+  89   3                  
+  90   3              }
+  91   2              if((SN[0]==card_2[0])&&(SN[1]==card_2[1])&&(SN[2]==card_2[2])&&(SN[3]==card_2[3]))
+  92   2              {
+  93   3                  card2_bit=1;
+  94   3                  printf("\r\nThe User is:card_2\r\n");
+  95   3                  
+  96   3              }
+  97   2              
+  98   2              if((SN[0]==card_3[0])&&(SN[1]==card_3[1])&&(SN[2]==card_3[2])&&(SN[3]==card_3[3]))
+  99   2              {
+ 100   3                  card3_bit=1;
+ 101   3                  printf("\r\nThe User is:card_3\r\n");
+ 102   3                  
+ 103   3              }
+ 104   2              if((SN[0]==card_4[0])&&(SN[1]==card_4[1])&&(SN[2]==card_4[2])&&(SN[3]==card_4[3]))
+ 105   2              {
+ 106   3                  card4_bit=1;
+ 107   3                  printf("\r\nThe User is:card_4\r\n");
+ 108   3                  
+ 109   3              }
+ 110   2              //total=card1_bit+card2_bit+card3_bit+card4_bit+lxl_bit;
+ 111   2              status =PcdSelect(SN);
+ 112   2          }
+ 113   1          else
+ 114   1          {
+ 115   2              
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 3   
+
+ 116   2             // TODO 
+ 117   2          }
+ 118   1          if(status==MI_OK)//ßx¿¨³É¹¦
+ 119   1          {
+ 120   2       
+ 121   2              status=MI_ERR;
+ 122   2              status =PcdAuthState(0x60,0x09,KEY,SN);
+ 123   2           }
+ 124   1          if(status==MI_OK)//òž×C³É¹¦
+ 125   1          {
+ 126   2              status=MI_ERR;
+ 127   2              status=PcdRead(0x09,RFID);
+ 128   2                                      if(status == MI_OK)
+ 129   2                                      {
+ 130   3                                              for(i=0;i<16;i++)
+ 131   3                                              {
+ 132   4                                                      printf("%c",RFID[i]);
+ 133   4                                              }
+ 134   3                                      }
+ 135   2          }
+ 136   1                      
+ 137   1                      if(status==MI_OK)
+ 138   1                      {
+ 139   2                              status=MI_ERR;
+ 140   2                              status=PcdWrite(0x09,RFWRITE);
+ 141   2                              if(status==MI_OK)
+ 142   2                              {
+ 143   3                                      printf("123");
+ 144   3                              }
+ 145   2                      }
+ 146   1                      
+ 147   1       
+ 148   1          if(status==MI_OK)//×x¿¨³É¹¦
+ 149   1          {
+ 150   2              status=MI_ERR;
+ 151   2              delay_ms(100);
+ 152   2          }   
+ 153   1       
+ 154   1      }
+ 155           
+ 156          void RC522_Init ( void )
+ 157          {
+ 158   1      //      SPI1_Init();
+ 159   1              
+ 160   1              RC522_Reset_Disable();
+ 161   1              
+ 162   1              RC522_CS_Disable();
+ 163   1          
+ 164   1        PcdReset ();
+ 165   1          
+ 166   1              M500PcdConfigISOType ( 'A' );//ÉèÖÃ¹¤×÷·½Ê½
+ 167   1       
+ 168   1      }
+ 169           
+ 170          //void SPI1_Init(void)  
+ 171          //{
+ 172          //              GPIO_InitTypeDef GPIO_InitStructure;
+ 173          //              RCC_APB2PeriphClockCmd( RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB, ENABLE );//PORTBÊ±ÖÓÊ¹ÄÜ 
+ 174          //              
+ 175          //              // CS
+ 176          //    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;         
+ 177          //    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;           //ÍÆÍìÊä³ö
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 4   
+
+ 178          //    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;          //IO¿ÚËÙ¶ÈÎª50MHz
+ 179          //    GPIO_Init(GPIOB, &GPIO_InitStructure);                                     //¸ù¾ÝÉè¶¨²ÎÊý³õÊ¼»¯PF0¡¢PF1
+ 180          //    
+ 181          //    // SCK
+ 182          //    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;         
+ 183          //    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;           //ÍÆÍìÊä³ö
+ 184          //    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;          //IO¿ÚËÙ¶ÈÎª50MHz
+ 185          //    GPIO_Init(GPIOB, &GPIO_InitStructure);
+ 186          //    
+ 187          //    // MISO
+ 188          //    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14;         
+ 189          //    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;              //ÍÆÍìÊä³ö
+ 190          //    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;          //IO¿ÚËÙ¶ÈÎª50MHz
+ 191          //    GPIO_Init(GPIOB, &GPIO_InitStructure);
+ 192          //    
+ 193          //    // MOSI
+ 194          //    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;         
+ 195          //    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;           //ÍÆÍìÊä³ö
+ 196          //    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;          //IO¿ÚËÙ¶ÈÎª50MHz
+ 197          //    GPIO_Init(GPIOB, &GPIO_InitStructure);
+ 198          //    
+ 199          //    // RST
+ 200          //    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;  
+ 201          //    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;           //ÍÆÍìÊä³ö
+ 202          //    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;          //IO¿ÚËÙ¶ÈÎª50MHz
+ 203          //    GPIO_Init(GPIOA, &GPIO_InitStructure);
+ 204          //    
+ 205          //}
+ 206           
+ 207           
+ 208          /*
+ 209           * º¯ÊýÃû£ºSPI_RC522_SendByte
+ 210           * ÃèÊö  £ºÏòRC522·¢ËÍ1 Byte Êý¾Ý
+ 211           * ÊäÈë  £ºbyte£¬Òª·¢ËÍµÄÊý¾Ý
+ 212           * ·µ»Ø  : RC522·µ»ØµÄÊý¾Ý
+ 213           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 214           */
+ 215          void SPI_RC522_SendByte ( u8 byte )
+ 216          {
+ 217   1          u8 counter;
+ 218   1              
+ 219   1          for(counter=0;counter<8;counter++)
+ 220   1          {     
+ 221   2                              if ( byte & 0x80 )
+ 222   2                                              RC522_MOSI_1 ();
+ 223   2                              else 
+ 224   2                                              RC522_MOSI_0 ();
+ 225   2       
+ 226   2      //                      delay_us ( 3 );
+ 227   2                              RC522_DELAY();
+ 228   2                      
+ 229   2                              RC522_SCK_0 ();
+ 230   2       
+ 231   2      //                      delay_us ( 1 );
+ 232   2      //                      delay_us ( 3 );
+ 233   2                              RC522_DELAY();
+ 234   2                               
+ 235   2                              RC522_SCK_1();
+ 236   2       
+ 237   2      //                      delay_us ( 3 );
+ 238   2                              RC522_DELAY();
+ 239   2                               
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 5   
+
+ 240   2                              byte <<= 1; 
+ 241   2                              
+ 242   2          } 
+ 243   1              
+ 244   1      }
+ 245           
+ 246           
+ 247          /*
+ 248           * º¯ÊýÃû£ºSPI_RC522_ReadByte
+ 249           * ÃèÊö  £º´ÓRC522·¢ËÍ1 Byte Êý¾Ý
+ 250           * ÊäÈë  £ºÎÞ
+ 251           * ·µ»Ø  : RC522·µ»ØµÄÊý¾Ý
+ 252           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 253           */
+ 254          u8 SPI_RC522_ReadByte ( void )
+ 255          {
+ 256   1              u8 counter;
+ 257   1              u8 SPI_Data;
+ 258   1       
+ 259   1       
+ 260   1              for(counter=0;counter<8;counter++)
+ 261   1              {
+ 262   2                              SPI_Data <<= 1;
+ 263   2               
+ 264   2                              RC522_SCK_0 ();
+ 265   2       
+ 266   2      //                      delay_us ( 3 );
+ 267   2                          RC522_DELAY();
+ 268   2                      
+ 269   2                              if ( spi_miso == 1)
+ 270   2                                              SPI_Data |= 0x01;
+ 271   2       
+ 272   2      //                      delay_us ( 2 );
+ 273   2      //                      delay_us ( 3 );
+ 274   2                              RC522_DELAY();
+ 275   2       
+ 276   2                              RC522_SCK_1 ();
+ 277   2              
+ 278   2      //                      delay_us ( 3 );
+ 279   2                              RC522_DELAY();
+ 280   2                              
+ 281   2              }
+ 282   1              
+ 283   1       
+ 284   1      //      printf("****%c****",SPI_Data);
+ 285   1              return SPI_Data;
+ 286   1      }
+ 287           
+ 288           
+ 289          /*
+ 290           * º¯ÊýÃû£ºReadRawRC
+ 291           * ÃèÊö  £º¶ÁRC522¼Ä´æÆ÷
+ 292           * ÊäÈë  £ºucAddress£¬¼Ä´æÆ÷µØÖ·
+ 293           * ·µ»Ø  : ¼Ä´æÆ÷µÄµ±Ç°Öµ
+ 294           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 295           */
+ 296          u8 ReadRawRC ( u8 ucAddress )
+ 297          {
+ 298   1              u8 ucAddr, ucReturn;
+ 299   1              
+ 300   1              
+ 301   1              ucAddr = ( ( ucAddress << 1 ) & 0x7E ) | 0x80;
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 6   
+
+ 302   1              
+ 303   1              RC522_CS_Enable();
+ 304   1              
+ 305   1              SPI_RC522_SendByte ( ucAddr );
+ 306   1              
+ 307   1              ucReturn = SPI_RC522_ReadByte ();
+ 308   1              
+ 309   1              RC522_CS_Disable();
+ 310   1       
+ 311   1              return ucReturn;
+ 312   1      }
+ 313           
+ 314           
+ 315          /*
+ 316           * º¯ÊýÃû£ºWriteRawRC
+ 317           * ÃèÊö  £ºÐ´RC522¼Ä´æÆ÷
+ 318           * ÊäÈë  £ºucAddress£¬¼Ä´æÆ÷µØÖ·
+ 319           *         ucValue£¬Ð´Èë¼Ä´æÆ÷µÄÖµ
+ 320           * ·µ»Ø  : ÎÞ
+ 321           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 322           */
+ 323          void WriteRawRC ( u8 ucAddress, u8 ucValue )
+ 324          {  
+ 325   1              u8 ucAddr;
+ 326   1       
+ 327   1              ucAddr = ( ucAddress << 1 ) & 0x7E;
+ 328   1              
+ 329   1              RC522_CS_Enable();
+ 330   1              
+ 331   1              SPI_RC522_SendByte ( ucAddr );
+ 332   1              
+ 333   1              SPI_RC522_SendByte ( ucValue );
+ 334   1              
+ 335   1              RC522_CS_Disable();     
+ 336   1      }
+ 337           
+ 338           
+ 339          /*
+ 340           * º¯ÊýÃû£ºSetBitMask
+ 341           * ÃèÊö  £º¶ÔRC522¼Ä´æÆ÷ÖÃÎ»
+ 342           * ÊäÈë  £ºucReg£¬¼Ä´æÆ÷µØÖ·
+ 343           *         ucMask£¬ÖÃÎ»Öµ
+ 344           * ·µ»Ø  : ÎÞ
+ 345           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 346           */
+ 347          void SetBitMask ( u8 ucReg, u8 ucMask )  
+ 348          {
+ 349   1          u8 ucTemp;
+ 350   1       
+ 351   1          ucTemp = ReadRawRC ( ucReg );
+ 352   1              
+ 353   1          WriteRawRC ( ucReg, ucTemp | ucMask );         // set bit mask
+ 354   1       
+ 355   1      }
+ 356           
+ 357           
+ 358          /*
+ 359           * º¯ÊýÃû£ºClearBitMask
+ 360           * ÃèÊö  £º¶ÔRC522¼Ä´æÆ÷ÇåÎ»
+ 361           * ÊäÈë  £ºucReg£¬¼Ä´æÆ÷µØÖ·
+ 362           *         ucMask£¬ÇåÎ»Öµ
+ 363           * ·µ»Ø  : ÎÞ
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 7   
+
+ 364           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 365           */
+ 366          void ClearBitMask ( u8 ucReg, u8 ucMask )  
+ 367          {
+ 368   1          u8 ucTemp;
+ 369   1       
+ 370   1          ucTemp = ReadRawRC ( ucReg );
+ 371   1              
+ 372   1          WriteRawRC ( ucReg, ucTemp & ( ~ ucMask) );  // clear bit mask
+ 373   1              
+ 374   1              
+ 375   1      }
+ 376           
+ 377           
+ 378          /*
+ 379           * º¯ÊýÃû£ºPcdAntennaOn
+ 380           * ÃèÊö  £º¿ªÆôÌìÏß 
+ 381           * ÊäÈë  £ºÎÞ
+ 382           * ·µ»Ø  : ÎÞ
+ 383           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 384           */
+ 385          void PcdAntennaOn ( void )
+ 386          {
+ 387   1          u8 uc;
+ 388   1       
+ 389   1          uc = ReadRawRC ( TxControlReg );
+ 390   1              
+ 391   1          if ( ! ( uc & 0x03 ) )
+ 392   1                              SetBitMask(TxControlReg, 0x03);
+ 393   1              
+ 394   1      }
+ 395           
+ 396           
+ 397          /*
+ 398           * º¯ÊýÃû£ºPcdAntennaOff
+ 399           * ÃèÊö  £º¿ªÆôÌìÏß 
+ 400           * ÊäÈë  £ºÎÞ
+ 401           * ·µ»Ø  : ÎÞ
+ 402           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 403           */
+ 404          void PcdAntennaOff ( void )
+ 405          {
+ 406   1       
+ 407   1          ClearBitMask ( TxControlReg, 0x03 );
+ 408   1       
+ 409   1      }
+ 410           
+ 411           
+ 412          /*
+ 413           * º¯ÊýÃû£ºPcdRese
+ 414           * ÃèÊö  £º¸´Î»RC522 
+ 415           * ÊäÈë  £ºÎÞ
+ 416           * ·µ»Ø  : ÎÞ
+ 417           * µ÷ÓÃ  £ºÍâ²¿µ÷ÓÃ
+ 418           */
+ 419          void PcdReset ( void )
+ 420          {
+ 421   1          RC522_Reset_Disable();
+ 422   1       
+ 423   1          delay_us ( 1 );
+ 424   1       
+ 425   1          RC522_Reset_Enable();
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 8   
+
+ 426   1       
+ 427   1          delay_us ( 1 );
+ 428   1       
+ 429   1          RC522_Reset_Disable();
+ 430   1       
+ 431   1          delay_us ( 1 );
+ 432   1       
+ 433   1          WriteRawRC ( CommandReg, 0x0f );
+ 434   1       
+ 435   1          while ( ReadRawRC ( CommandReg ) & 0x10 );
+ 436   1       
+ 437   1          delay_us ( 1 );
+ 438   1       
+ 439   1          WriteRawRC ( ModeReg, 0x3D );            //¶¨Òå·¢ËÍºÍ½ÓÊÕ³£ÓÃÄ£Ê½ ºÍMifare¿¨Í¨Ñ¶£¬CRC³õÊ¼Öµ0x6363
+ 440   1       
+ 441   1          WriteRawRC ( TReloadRegL, 30 );          //16Î»¶¨Ê±Æ÷µÍÎ»    
+ 442   1          WriteRawRC ( TReloadRegH, 0 );                           //16Î»¶¨Ê±Æ÷¸ßÎ»
+ 443   1       
+ 444   1          WriteRawRC ( TModeReg, 0x8D );                                 //¶¨ÒåÄÚ²¿¶¨Ê±Æ÷µÄÉèÖÃ
+ 445   1       
+ 446   1          WriteRawRC ( TPrescalerReg, 0x3E );                  //ÉèÖÃ¶¨Ê±Æ÷·ÖÆµÏµÊý
+ 447   1       
+ 448   1          WriteRawRC ( TxAutoReg, 0x40 );                                //µ÷ÖÆ·¢ËÍÐÅºÅÎª100%ASK      
+ 449   1              
+ 450   1       
+ 451   1      }
+ 452           
+ 453           
+ 454          /*
+ 455           * º¯ÊýÃû£ºM500PcdConfigISOType
+ 456           * ÃèÊö  £ºÉèÖÃRC522µÄ¹¤×÷·½Ê½
+ 457           * ÊäÈë  £ºucType£¬¹¤×÷·½Ê½
+ 458           * ·µ»Ø  : ÎÞ
+ 459           * µ÷ÓÃ  £ºÍâ²¿µ÷ÓÃ
+ 460           */
+ 461          void M500PcdConfigISOType ( u8 ucType )
+ 462          {
+ 463   1              if ( ucType == 'A')                     //ISO14443_A
+ 464   1        {
+ 465   2                      ClearBitMask ( Status2Reg, 0x08 );
+ 466   2                      
+ 467   2          WriteRawRC ( ModeReg, 0x3D );//3F
+ 468   2                      
+ 469   2                      WriteRawRC ( RxSelReg, 0x86 );//84
+ 470   2                      
+ 471   2                      WriteRawRC( RFCfgReg, 0x4F );   //4F
+ 472   2                      
+ 473   2                      WriteRawRC( TReloadRegL, 30 );//tmoLength);// TReloadVal = 'h6a =tmoLength(dec) 
+ 474   2                      
+ 475   2                      WriteRawRC ( TReloadRegH, 0 );
+ 476   2                      
+ 477   2                      WriteRawRC ( TModeReg, 0x8D );
+ 478   2                      
+ 479   2                      WriteRawRC ( TPrescalerReg, 0x3E );
+ 480   2                      
+ 481   2                      delay_us ( 2 );
+ 482   2                      
+ 483   2                      PcdAntennaOn ();//¿ªÌìÏß
+ 484   2                      
+ 485   2         }
+ 486   1       
+ 487   1      }
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 9   
+
+ 488          /*
+ 489           * º¯ÊýÃû£ºPcdComMF522
+ 490           * ÃèÊö  £ºÍ¨¹ýRC522ºÍISO14443¿¨Í¨Ñ¶
+ 491           * ÊäÈë  £ºucCommand£¬RC522ÃüÁî×Ö
+ 492           *         pInData£¬Í¨¹ýRC522·¢ËÍµ½¿¨Æ¬µÄÊý¾Ý
+ 493           *         ucInLenByte£¬·¢ËÍÊý¾ÝµÄ×Ö½Ú³¤¶È
+ 494           *         pOutData£¬½ÓÊÕµ½µÄ¿¨Æ¬·µ»ØÊý¾Ý
+ 495           *         pOutLenBit£¬·µ»ØÊý¾ÝµÄÎ»³¤¶È
+ 496           * ·µ»Ø  : ×´Ì¬Öµ
+ 497           *         = MI_OK£¬³É¹¦
+ 498           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 499           */
+ 500          
+ 501          
+ 502          char PcdComMF522 ( u8 ucCommand, u8 * pInData, u8 ucInLenByte, u8 * pOutData, u32 * pOutLenBit )                
+ 503          {
+ 504   1          char cStatus = MI_ERR;
+ 505   1          u8 ucIrqEn   = 0x00;
+ 506   1          u8 ucWaitFor = 0x00;
+ 507   1          u8 ucLastBits;
+ 508   1          u8 ucN;
+ 509   1          u32 ul;
+ 510   1          switch ( ucCommand )
+ 511   1          {
+ 512   2             case PCD_AUTHENT:                //MifareÈÏÖ¤
+ 513   2                ucIrqEn   = 0x12;             //ÔÊÐí´íÎóÖÐ¶ÏÇëÇóErrIEn  ÔÊÐí¿ÕÏÐÖÐ¶ÏIdleIEn
+ 514   2                ucWaitFor = 0x10;             //ÈÏÖ¤Ñ°¿¨µÈ´ýÊ±ºò ²éÑ¯¿ÕÏÐÖÐ¶Ï±êÖ¾Î»
+ 515   2                break;
+ 516   2                               
+ 517   2             case PCD_TRANSCEIVE:             //½ÓÊÕ·¢ËÍ ·¢ËÍ½ÓÊÕ
+ 518   2                ucIrqEn   = 0x77;             //ÔÊÐíTxIEn RxIEn IdleIEn LoAlertIEn ErrIEn TimerIEn
+ 519   2                ucWaitFor = 0x30;             //Ñ°¿¨µÈ´ýÊ±ºò ²éÑ¯½ÓÊÕÖÐ¶Ï±êÖ¾Î»Óë ¿ÕÏÐÖÐ¶Ï±êÖ¾Î»
+ 520   2                break;
+ 521   2                               
+ 522   2             default:
+ 523   2               break;
+ 524   2                               
+ 525   2          }
+ 526   1         
+ 527   1          WriteRawRC ( ComIEnReg, ucIrqEn | 0x80 );           //IRqInvÖÃÎ»¹Ü½ÅIRQÓëStatus1RegµÄIRqÎ»µÄÖµÏà·´ 
+ 528   1          ClearBitMask ( ComIrqReg, 0x80 );                   //Set1¸ÃÎ»ÇåÁãÊ±£¬CommIRqRegµÄÆÁ±ÎÎ»ÇåÁã
+ 529   1          WriteRawRC ( CommandReg, PCD_IDLE );                //Ð´¿ÕÏÐÃüÁî
+ 530   1          SetBitMask ( FIFOLevelReg, 0x80 );                  //ÖÃÎ»FlushBufferÇå³ýÄÚ²¿FIFOµÄ¶ÁºÍÐ´Ö¸ÕëÒÔ¼°ErrRegµÄBufferOvfl±ê
+             -Ö¾Î»±»Çå³ý
+ 531   1          
+ 532   1          for ( ul = 0; ul < ucInLenByte; ul ++ )
+ 533   1                        WriteRawRC ( FIFODataReg, pInData [ ul ] );                   //Ð´Êý¾Ý½øFIFOdata
+ 534   1                              
+ 535   1          WriteRawRC ( CommandReg, ucCommand );                                       //Ð´ÃüÁî
+ 536   1         
+ 537   1          
+ 538   1          if ( ucCommand == PCD_TRANSCEIVE )
+ 539   1                              SetBitMask(BitFramingReg,0x80);                                 //StartSendÖÃÎ»Æô¶¯Êý¾Ý·¢ËÍ ¸ÃÎ»ÓëÊÕ·¢ÃüÁîÊ¹ÓÃÊ±²ÅÓÐÐ§
+ 540   1          
+ 541   1          ul = 1000;//¸ù¾ÝÊ±ÖÓÆµÂÊµ÷Õû£¬²Ù×÷M1¿¨×î´óµÈ´ýÊ±¼ä25ms
+ 542   1                      
+ 543   1          do                                                                                                          //ÈÏÖ¤ ÓëÑ°¿¨µÈ´ýÊ±¼ä   
+ 544   1          {
+ 545   2               ucN = ReadRawRC ( ComIrqReg );                                                 //²éÑ¯ÊÂ¼þÖÐ¶Ï
+ 546   2               ul --;
+ 547   2          } while ( ( ul != 0 ) && ( ! ( ucN & 0x01 ) ) && ( ! ( ucN & ucWaitFor ) ) );               //ÍË³öÌõ¼þi=0,¶¨Ê±Æ÷ÖÐ¶
+             -Ï£¬ÓëÐ´¿ÕÏÐÃüÁî
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 10  
+
+ 548   1                      
+ 549   1          ClearBitMask ( BitFramingReg, 0x80 );                                       //ÇåÀíÔÊÐíStartSendÎ»
+ 550   1                      
+ 551   1          if ( ul != 0 )
+ 552   1          {
+ 553   2                      if ( ! (( ReadRawRC ( ErrorReg ) & 0x1B )) )                    //¶Á´íÎó±êÖ¾¼Ä´æÆ÷BufferOfI CollErr ParityErr ProtocolErr
+ 554   2                      {
+ 555   3                              cStatus = MI_OK;
+ 556   3                              
+ 557   3                              if ( ucN & ucIrqEn & 0x01 )                                     //ÊÇ·ñ·¢Éú¶¨Ê±Æ÷ÖÐ¶Ï
+ 558   3                                cStatus = MI_NOTAGERR;   
+ 559   3                                      
+ 560   3                              if ( ucCommand == PCD_TRANSCEIVE )
+ 561   3                              {
+ 562   4                                      ucN = ReadRawRC ( FIFOLevelReg );                       //¶ÁFIFOÖÐ±£´æµÄ×Ö½ÚÊý
+ 563   4                                      
+ 564   4                                      ucLastBits = ReadRawRC ( ControlReg ) & 0x07;   //×îºó½ÓÊÕµ½µÃ×Ö½ÚµÄÓÐÐ§Î»Êý
+ 565   4                                      
+ 566   4                                      if ( ucLastBits )
+ 567   4                                              * pOutLenBit = ( ucN - 1 ) * 8 + ucLastBits;    //N¸ö×Ö½ÚÊý¼õÈ¥1£¨×îºóÒ»¸ö×Ö½Ú£©+×îºóÒ»Î»µÄÎ»Êý ¶ÁÈ¡µ
+             -½µÄÊý¾Ý×ÜÎ»Êý
+ 568   4                                      else
+ 569   4                                              * pOutLenBit = ucN * 8;                                         //×îºó½ÓÊÕµ½µÄ×Ö½ÚÕû¸ö×Ö½ÚÓÐÐ§
+ 570   4                                      
+ 571   4                                      if ( ucN == 0 ) 
+ 572   4                          ucN = 1;    
+ 573   4                                      
+ 574   4                                      if ( ucN > MAXRLEN )
+ 575   4                                              ucN = MAXRLEN;   
+ 576   4                                      
+ 577   4                                      for ( ul = 0; ul < ucN; ul ++ )
+ 578   4                                        pOutData [ ul ] = ReadRawRC ( FIFODataReg );   
+ 579   4                              }               
+ 580   3              }
+ 581   2                              else
+ 582   2                                      cStatus = MI_ERR;   
+ 583   2      //                      printf(ErrorReg);
+ 584   2          }
+ 585   1         
+ 586   1         SetBitMask ( ControlReg, 0x80 );           // stop timer now
+ 587   1         WriteRawRC ( CommandReg, PCD_IDLE ); 
+ 588   1              
+ 589   1         return cStatus;
+ 590   1      }
+ 591          /*
+ 592           * º¯ÊýÃû£ºPcdRequest
+ 593           * ÃèÊö  £ºÑ°¿¨
+ 594           * ÊäÈë  £ºucReq_code£¬Ñ°¿¨·½Ê½
+ 595           *                     = 0x52£¬Ñ°¸ÐÓ¦ÇøÄÚËùÓÐ·ûºÏ14443A±ê×¼µÄ¿¨
+ 596           *                     = 0x26£¬Ñ°Î´½øÈëÐÝÃß×´Ì¬µÄ¿¨
+ 597           *         pTagType£¬¿¨Æ¬ÀàÐÍ´úÂë
+ 598           *                   = 0x4400£¬Mifare_UltraLight
+ 599           *                   = 0x0400£¬Mifare_One(S50)
+ 600           *                   = 0x0200£¬Mifare_One(S70)
+ 601           *                   = 0x0800£¬Mifare_Pro(X))
+ 602           *                   = 0x4403£¬Mifare_DESFire
+ 603           * ·µ»Ø  : ×´Ì¬Öµ
+ 604           *         = MI_OK£¬³É¹¦
+ 605           * µ÷ÓÃ  £ºÍâ²¿µ÷ÓÃ
+ 606           */
+ 607          char PcdRequest ( u8 ucReq_code, u8 * pTagType )
+ 608          {
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 11  
+
+ 609   1          char cStatus;  
+ 610   1          u8 ucComMF522Buf [ MAXRLEN ]; 
+ 611   1          u32 ulLen;
+ 612   1          ClearBitMask ( Status2Reg, 0x08 );  //ÇåÀíÖ¸Ê¾MIFARECyptolµ¥Ôª½ÓÍ¨ÒÔ¼°ËùÓÐ¿¨µÄÊý¾ÝÍ¨ÐÅ±»¼ÓÃÜµÄÇé¿ö
+ 613   1          WriteRawRC ( BitFramingReg, 0x07 ); //      ·¢ËÍµÄ×îºóÒ»¸ö×Ö½ÚµÄ ÆßÎ»
+ 614   1          SetBitMask ( TxControlReg, 0x03 );  //TX1,TX2¹Ü½ÅµÄÊä³öÐÅºÅ´«µÝ¾­·¢ËÍµ÷ÖÆµÄ13.56µÄÄÜÁ¿ÔØ²¨ÐÅºÅ
+ 615   1          ucComMF522Buf [ 0 ] = ucReq_code;           //´æÈë ¿¨Æ¬ÃüÁî×Ö
+ 616   1          cStatus = PcdComMF522 ( PCD_TRANSCEIVE,     ucComMF522Buf, 1, ucComMF522Buf, & ulLen );     //Ñ°¿¨  
+ 617   1          if ( ( cStatus == MI_OK ) && ( ulLen == 0x10 ) )    //Ñ°¿¨³É¹¦·µ»Ø¿¨ÀàÐÍ 
+ 618   1          {    
+ 619   2             * pTagType = ucComMF522Buf [ 0 ];
+ 620   2             * ( pTagType + 1 ) = ucComMF522Buf [ 1 ];
+ 621   2          }
+ 622   1           
+ 623   1          else
+ 624   1           cStatus = MI_ERR;
+ 625   1          return cStatus;
+ 626   1       
+ 627   1      }
+ 628          /*
+ 629           * º¯ÊýÃû£ºPcdAnticoll
+ 630           * ÃèÊö  £º·À³å×²
+ 631           * ÊäÈë  £ºpSnr£¬¿¨Æ¬ÐòÁÐºÅ£¬4×Ö½Ú
+ 632           * ·µ»Ø  : ×´Ì¬Öµ
+ 633           *         = MI_OK£¬³É¹¦
+ 634           * µ÷ÓÃ  £ºÍâ²¿µ÷ÓÃ
+ 635           */
+ 636          char PcdAnticoll ( u8 * pSnr )
+ 637          {
+ 638   1          char cStatus;
+ 639   1          u8 uc, ucSnr_check = 0;
+ 640   1          u8 ucComMF522Buf [ MAXRLEN ]; 
+ 641   1              u32 ulLen;
+ 642   1          ClearBitMask ( Status2Reg, 0x08 );          //ÇåMFCryptol OnÎ» Ö»ÓÐ³É¹¦Ö´ÐÐMFAuthentÃüÁîºó£¬¸ÃÎ»²ÅÄÜÖÃÎ»
+ 643   1          WriteRawRC ( BitFramingReg, 0x00);          //ÇåÀí¼Ä´æÆ÷ Í£Ö¹ÊÕ·¢
+ 644   1          ClearBitMask ( CollReg, 0x80 );                     //ÇåValuesAfterCollËùÓÐ½ÓÊÕµÄÎ»ÔÚ³åÍ»ºó±»Çå³ý
+ 645   1         
+ 646   1          ucComMF522Buf [ 0 ] = 0x93; //¿¨Æ¬·À³åÍ»ÃüÁî
+ 647   1          ucComMF522Buf [ 1 ] = 0x20;
+ 648   1         
+ 649   1          cStatus = PcdComMF522 ( PCD_TRANSCEIVE, ucComMF522Buf, 2, ucComMF522Buf, & ulLen);//Óë¿¨Æ¬Í¨ÐÅ
+ 650   1              
+ 651   1          if ( cStatus == MI_OK)              //Í¨ÐÅ³É¹¦
+ 652   1          {
+ 653   2                      for ( uc = 0; uc < 4; uc ++ )
+ 654   2              {
+ 655   3                  * ( pSnr + uc )  = ucComMF522Buf [ uc ];                    //¶Á³öUID
+ 656   3                  ucSnr_check ^= ucComMF522Buf [ uc ];
+ 657   3              }
+ 658   2                              
+ 659   2              if ( ucSnr_check != ucComMF522Buf [ uc ] )
+ 660   2                              cStatus = MI_ERR;    
+ 661   2                                       
+ 662   2          }
+ 663   1          
+ 664   1          SetBitMask ( CollReg, 0x80 );
+ 665   1          return cStatus;
+ 666   1              
+ 667   1      }
+ 668          /*
+ 669           * º¯ÊýÃû£ºCalulateCRC
+ 670           * ÃèÊö  £ºÓÃRC522¼ÆËãCRC16
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 12  
+
+ 671           * ÊäÈë  £ºpIndata£¬¼ÆËãCRC16µÄÊý×é
+ 672           *         ucLen£¬¼ÆËãCRC16µÄÊý×é×Ö½Ú³¤¶È
+ 673           *         pOutData£¬´æ·Å¼ÆËã½á¹û´æ·ÅµÄÊ×µØÖ·
+ 674           * ·µ»Ø  : ÎÞ
+ 675           * µ÷ÓÃ  £ºÄÚ²¿µ÷ÓÃ
+ 676           */
+ 677          void CalulateCRC ( u8 * pIndata, u8 ucLen, u8 * pOutData )
+ 678          {
+ 679   1          u8 uc, ucN;
+ 680   1          ClearBitMask(DivIrqReg,0x04);
+ 681   1              
+ 682   1          WriteRawRC(CommandReg,PCD_IDLE);
+ 683   1              
+ 684   1          SetBitMask(FIFOLevelReg,0x80);
+ 685   1              
+ 686   1          for ( uc = 0; uc < ucLen; uc ++)
+ 687   1                  WriteRawRC ( FIFODataReg, * ( pIndata + uc ) );   
+ 688   1          WriteRawRC ( CommandReg, PCD_CALCCRC );
+ 689   1              
+ 690   1          uc = 0xFF;
+ 691   1              
+ 692   1          do 
+ 693   1          {
+ 694   2              ucN = ReadRawRC ( DivIrqReg );
+ 695   2              uc --;
+ 696   2          } while ( ( uc != 0 ) && ! ( ucN & 0x04 ) );
+ 697   1                      
+ 698   1          pOutData [ 0 ] = ReadRawRC ( CRCResultRegL );
+ 699   1          pOutData [ 1 ] = ReadRawRC ( CRCResultRegM );
+ 700   1              
+ 701   1      }
+ 702          /*
+ 703           * º¯ÊýÃû£ºPcdSelect
+ 704           * ÃèÊö  £ºÑ¡¶¨¿¨Æ¬
+ 705           * ÊäÈë  £ºpSnr£¬¿¨Æ¬ÐòÁÐºÅ£¬4×Ö½Ú
+ 706           * ·µ»Ø  : ×´Ì¬Öµ
+ 707           *         = MI_OK£¬³É¹¦
+ 708           * µ÷ÓÃ  £ºÍâ²¿µ÷ÓÃ
+ 709           */
+ 710          char PcdSelect ( u8 * pSnr )
+ 711          {
+ 712   1          char ucN;
+ 713   1          u8 uc;
+ 714   1                u8 ucComMF522Buf [ MAXRLEN ]; 
+ 715   1          u32  ulLen;
+ 716   1          ucComMF522Buf [ 0 ] = PICC_ANTICOLL1;
+ 717   1          ucComMF522Buf [ 1 ] = 0x70;
+ 718   1          ucComMF522Buf [ 6 ] = 0;
+ 719   1              
+ 720   1          for ( uc = 0; uc < 4; uc ++ )
+ 721   1          {
+ 722   2              ucComMF522Buf [ uc + 2 ] = * ( pSnr + uc );
+ 723   2              ucComMF522Buf [ 6 ] ^= * ( pSnr + uc );
+ 724   2          }
+ 725   1                      
+ 726   1          CalulateCRC ( ucComMF522Buf, 7, & ucComMF522Buf [ 7 ] );
+ 727   1        
+ 728   1          ClearBitMask ( Status2Reg, 0x08 );
+ 729   1          ucN = PcdComMF522 ( PCD_TRANSCEIVE, ucComMF522Buf, 9, ucComMF522Buf, & ulLen );
+ 730   1          
+ 731   1          if ( ( ucN == MI_OK ) && ( ulLen == 0x18 ) )
+ 732   1            ucN = MI_OK;  
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 13  
+
+ 733   1          else
+ 734   1            ucN = MI_ERR;    
+ 735   1          return ucN;
+ 736   1              
+ 737   1      }
+ 738          /*
+ 739           * º¯ÊýÃû£ºPcdAuthState
+ 740           * ÃèÊö  £ºÑéÖ¤¿¨Æ¬ÃÜÂë
+ 741           * ÊäÈë  £ºucAuth_mode£¬ÃÜÂëÑéÖ¤Ä£Ê½
+ 742           *                     = 0x60£¬ÑéÖ¤AÃÜÔ¿
+ 743           *                     = 0x61£¬ÑéÖ¤BÃÜÔ¿
+ 744           *         u8 ucAddr£¬¿éµØÖ·
+ 745           *         pKey£¬ÃÜÂë
+ 746           *         pSnr£¬¿¨Æ¬ÐòÁÐºÅ£¬4×Ö½Ú
+ 747           * ·µ»Ø  : ×´Ì¬Öµ
+ 748           *         = MI_OK£¬³É¹¦
+ 749           * µ÷ÓÃ  £ºÍâ²¿µ÷ÓÃ
+ 750           */
+ 751          char PcdAuthState ( u8 ucAuth_mode, u8 ucAddr, u8 * pKey, u8 * pSnr )
+ 752          {
+ 753   1          char cStatus;
+ 754   1                u8 uc, ucComMF522Buf [ MAXRLEN ];
+ 755   1          u32 ulLen;
+ 756   1          ucComMF522Buf [ 0 ] = ucAuth_mode;
+ 757   1          ucComMF522Buf [ 1 ] = ucAddr;
+ 758   1              
+ 759   1          for ( uc = 0; uc < 6; uc ++ )
+ 760   1                  ucComMF522Buf [ uc + 2 ] = * ( pKey + uc );   
+ 761   1              
+ 762   1          for ( uc = 0; uc < 6; uc ++ )
+ 763   1                  ucComMF522Buf [ uc + 8 ] = * ( pSnr + uc );   
+ 764   1          cStatus = PcdComMF522 ( PCD_AUTHENT, ucComMF522Buf, 12, ucComMF522Buf, & ulLen );
+ 765   1              
+ 766   1          if ( ( cStatus != MI_OK ) || ( ! ( ReadRawRC ( Status2Reg ) & 0x08 ) ) )
+ 767   1                              
+ 768   1                      {
+ 769   2                              cStatus = MI_ERR; 
+ 770   2          }
+ 771   1                      
+ 772   1          return cStatus;
+ 773   1                      
+ 774   1      }
+ 775          /*
+ 776           * º¯ÊýÃû£ºPcdWrite
+ 777           * ÃèÊö  £ºÐ´Êý¾Ýµ½M1¿¨Ò»¿é
+ 778           * ÊäÈë  £ºu8 ucAddr£¬¿éµØÖ·
+ 779           *         pData£¬Ð´ÈëµÄÊý¾Ý£¬16×Ö½Ú
+ 780           * ·µ»Ø  : ×´Ì¬Öµ
+ 781           *         = MI_OK£¬³É¹¦
+ 782           * µ÷ÓÃ  £ºÍâ²¿µ÷ÓÃ
+ 783           */
+ 784          char PcdWrite ( u8 ucAddr, u8 * pData )
+ 785          {
+ 786   1          char cStatus;
+ 787   1                u8 uc, ucComMF522Buf [ MAXRLEN ];
+ 788   1          u32 ulLen;
+ 789   1          ucComMF522Buf [ 0 ] = PICC_WRITE;
+ 790   1          ucComMF522Buf [ 1 ] = ucAddr;
+ 791   1              
+ 792   1          CalulateCRC ( ucComMF522Buf, 2, & ucComMF522Buf [ 2 ] );
+ 793   1       
+ 794   1          cStatus = PcdComMF522 ( PCD_TRANSCEIVE, ucComMF522Buf, 4, ucComMF522Buf, & ulLen );
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 14  
+
+ 795   1          if ( ( cStatus != MI_OK ) || ( ulLen != 4 ) || ( ( ucComMF522Buf [ 0 ] & 0x0F ) != 0x0A ) )
+ 796   1            cStatus = MI_ERR;   
+ 797   1              
+ 798   1          if ( cStatus == MI_OK )
+ 799   1          {
+ 800   2                              memcpy(ucComMF522Buf, pData, 16);
+ 801   2            for ( uc = 0; uc < 16; uc ++ )
+ 802   2                                ucComMF522Buf [ uc ] = * ( pData + uc );  
+ 803   2                              
+ 804   2            CalulateCRC ( ucComMF522Buf, 16, & ucComMF522Buf [ 16 ] );
+ 805   2            cStatus = PcdComMF522 ( PCD_TRANSCEIVE, ucComMF522Buf, 18, ucComMF522Buf, & ulLen );
+ 806   2                              
+ 807   2                              if ( ( cStatus != MI_OK ) || ( ulLen != 4 ) || ( ( ucComMF522Buf [ 0 ] & 0x0F ) != 0x0A ) )
+ 808   2              cStatus = MI_ERR;   
+ 809   2                              
+ 810   2          } 
+ 811   1          return cStatus;
+ 812   1              
+ 813   1      }
+ 814          /*
+ 815           * º¯ÊýÃû£ºPcdRead
+ 816           * ÃèÊö  £º¶ÁÈ¡M1¿¨Ò»¿éÊý¾Ý
+ 817           * ÊäÈë  £ºu8 ucAddr£¬¿éµØÖ·
+ 818           *         pData£¬¶Á³öµÄÊý¾Ý£¬16×Ö½Ú
+ 819           * ·µ»Ø  : ×´Ì¬Öµ
+ 820           *         = MI_OK£¬³É¹¦
+ 821           * µ÷ÓÃ  £ºÍâ²¿µ÷ÓÃ
+ 822           */
+ 823          char PcdRead ( u8 ucAddr, u8 * pData )
+ 824          {
+ 825   1          char cStatus;
+ 826   1                u8 uc, ucComMF522Buf [ MAXRLEN ]=0; 
+ 827   1          u32 ulLen;
+ 828   1          ucComMF522Buf [ 0 ] = PICC_READ;
+ 829   1          ucComMF522Buf [ 1 ] = ucAddr;
+ 830   1              
+ 831   1          CalulateCRC ( ucComMF522Buf, 2, & ucComMF522Buf [ 2 ] );
+ 832   1         
+ 833   1          cStatus = PcdComMF522 ( PCD_TRANSCEIVE, ucComMF522Buf, 4, ucComMF522Buf, & ulLen );
+ 834   1              
+ 835   1          if ( ( cStatus == MI_OK ) && ( ulLen == 0x90 ) )
+ 836   1          {
+ 837   2                              for ( uc = 0; uc < 16; uc ++ )
+ 838   2              * ( pData + uc ) = ucComMF522Buf [ uc ];   
+ 839   2          }
+ 840   1                      
+ 841   1          else
+ 842   1            cStatus = MI_ERR;
+ 843   1              
+ 844   1          return cStatus;
+ 845   1      }
+ 846          /*
+ 847           * º¯ÊýÃû£ºPcdHalt
+ 848           * ÃèÊö  £ºÃüÁî¿¨Æ¬½øÈëÐÝÃß×´Ì¬
+ 849           * ÊäÈë  £ºÎÞ
+ 850           * ·µ»Ø  : ×´Ì¬Öµ
+ 851           *         = MI_OK£¬³É¹¦
+ 852           * µ÷ÓÃ  £ºÍâ²¿µ÷ÓÃ
+ 853           */
+ 854          char PcdHalt( void )
+ 855          {
+ 856   1          u8 ucComMF522Buf [ MAXRLEN ]; 
+C51 COMPILER V9.00   RC522                                                                 09/06/2024 10:54:26 PAGE 15  
+
+ 857   1          u32  ulLen;
+ 858   1          ucComMF522Buf [ 0 ] = PICC_HALT;
+ 859   1          ucComMF522Buf [ 1 ] = 0;
+ 860   1          CalulateCRC ( ucComMF522Buf, 2, & ucComMF522Buf [ 2 ] );
+ 861   1              PcdComMF522 ( PCD_TRANSCEIVE, ucComMF522Buf, 4, ucComMF522Buf, & ulLen );
+ 862   1          return MI_OK;
+ 863   1              
+ 864   1      }
+ 865          void IC_CMT ( u8 * UID, u8 * KEY, u8 RW, u8 * Dat )
+ 866          {
+ 867   1          u8 ucArray_ID [ 4 ] = { 0 };//ÏÈºó´æ·ÅIC¿¨µÄÀàÐÍºÍUID(IC¿¨ÐòÁÐºÅ)
+ 868   1          PcdRequest ( 0x52, ucArray_ID );//Ñ°¿¨
+ 869   1          PcdAnticoll ( ucArray_ID );//·À³å×²
+ 870   1          PcdSelect ( UID );//Ñ¡¶¨¿¨
+ 871   1          PcdAuthState ( 0x60, 0x10, KEY, UID );//Ð£Ñé
+ 872   1          if ( RW )//¶ÁÐ´Ñ¡Ôñ£¬1ÊÇ¶Á£¬0ÊÇÐ´
+ 873   1              PcdRead ( 0x10, Dat );
+ 874   1          else 
+ 875   1              PcdWrite ( 0x10, Dat );
+ 876   1           
+ 877   1          PcdHalt ();  
+ 878   1               
+ 879   1      }
+ 880          void ShowID(u16 x,u16 y, u8 *p, u16 charColor, u16 bkColor)      //ÏÔÊ¾¿¨µÄ¿¨ºÅ£¬ÒÔÊ®Áù½øÖÆÏÔÊ¾
+ 881          {
+ 882   1              u8 num[9];
+ 883   1              u8 i;
+ 884   1      /*      for(i=0;i<4;i++)
+ 885   1              {
+ 886   1                      num[i*2]=p[i]/16;
+ 887   1                      num[i*2]>9?(num[i*2]+='7'):(num[i*2]+='0');
+ 888   1                      num[i*2+1]=p[i]%16;
+ 889   1                      num[i*2+1]>9?(num[i*2+1]+='7'):(num[i*2+1]+='0');
+ 890   1              }
+ 891   1              num[8]=0;
+ 892   1          
+ 893   1          LCD_ShowString(6,110,110,16,16,num); */
+ 894   1          printf("ID>>>%s\r\n", num);
+ 895   1      }
+*** WARNING C280 IN LINE 880 OF RC522.C: 'x': unreferenced local variable
+*** WARNING C280 IN LINE 880 OF RC522.C: 'y': unreferenced local variable
+*** WARNING C280 IN LINE 880 OF RC522.C: 'p': unreferenced local variable
+*** WARNING C280 IN LINE 880 OF RC522.C: 'charColor': unreferenced local variable
+*** WARNING C280 IN LINE 880 OF RC522.C: 'bkColor': unreferenced local variable
+*** WARNING C280 IN LINE 883 OF RC522.C: 'i': unreferenced local variable
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3119    ----
+   CONSTANT SIZE    =    154    ----
+   XDATA SIZE       =     94     242
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  6 WARNING(S),  0 ERROR(S)

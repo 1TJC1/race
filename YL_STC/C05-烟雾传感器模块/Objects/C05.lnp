@@ -1,0 +1,6 @@
+".\Objects\lcd.obj",
+".\Objects\lcd_init.obj",
+".\Objects\main.obj",
+".\Objects\spi.obj" 
+TO ".\Objects\C05" 
+PRINT(".\Listings\C05.m51") RAMSIZE(256) 

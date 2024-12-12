@@ -1,0 +1,5 @@
+".\Objects\main.obj",
+".\Objects\XFS5051.obj",
+".\Objects\uart2.obj" 
+TO ".\Objects\D02" 
+PRINT(".\Listings\D02.m51") RAMSIZE(256) 

@@ -1,0 +1,103 @@
+C51 COMPILER V9.00   ZIGBEE                                                                07/02/2024 16:50:43 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE ZIGBEE
+OBJECT MODULE PLACED IN .\Objects\zigbee.obj
+COMPILER INVOKED BY: D:\software\KEIL4\C51\BIN\C51.EXE ZIGBEE\zigbee.c LARGE BROWSE INCDIR(.\UART2;.\ZIGBEE) DEBUG OBJEC
+                    -TEXTEND PRINT(.\Listings\zigbee.lst) OBJECT(.\Objects\zigbee.obj)
+
+line level    source
+
+   1          #include "zigbee.H"
+   2          #include "uart2.h"
+   3          #include "string.h"
+   4          
+   5          unsigned char zigbee_IP[]                       ={0xFE,0x07,0x90,0x21,0x00,0x00,0x11,0x1F,0x00,0xFF};//IP改成001f       0001-fffe
+   6          unsigned char zigbee_ID[]                       ={0xFE,0x07,0x90,0x21,0x00,0x00,0x12,0x91,0x19,0xFF};//网络ID改成1991   0001-fff
+             -e
+   7          unsigned char CHANNEL[] ={0xFE,0x06,0x90,0x21,0x00,0x00,0x13,0x11,0xFF};//信道改为0x12                                  0b-1a
+   8          unsigned char root[]                                    ={0xFE,0x05,0x90,0x21,0x00,0x00,0x10,0xFF};//重启
+   9          
+  10          void check_config(unsigned char config)
+  11          {
+  12   1              unsigned char a[10];
+  13   1              a[0]=0xfe;
+  14   1              a[1]=0x05;
+  15   1              a[2]=0x90;
+  16   1              a[3]=0x21;
+  17   1              a[4]=0x00;
+  18   1              a[5]=0x00;
+  19   1              a[6]=config;
+  20   1              a[7]=0xff;
+  21   1              SendDatas(a,8);
+  22   1      }
+  23          void changeIP(unsigned int n)
+  24          {
+  25   1              zigbee_IP[7]=(unsigned char)(n&0xff);
+  26   1              zigbee_IP[8]=(unsigned char)(n>>8);
+  27   1              SendDatas(zigbee_IP,sizeof(zigbee_IP));
+  28   1      }
+  29          void changeID(unsigned int n)
+  30          {
+  31   1              zigbee_ID[7]=(unsigned char)(n&0xff);
+  32   1              zigbee_ID[8]=(unsigned char)(n>>8);
+  33   1              SendDatas(zigbee_ID,sizeof(zigbee_ID));
+  34   1      }
+  35          void changeCHANNEL(unsigned char n)
+  36          {
+  37   1              CHANNEL[7]=n;
+  38   1              SendDatas(CHANNEL,sizeof(CHANNEL));
+  39   1      }
+  40          void cq()//重启
+  41          {
+  42   1              SendDatas(root,sizeof(root));
+  43   1      }
+  44          
+  45          void sendmessage(unsigned char port,unsigned int add,unsigned char *d,unsigned char len)//发送至指定地址的
+             -节点
+  46          {
+  47   1              unsigned char a[50];
+  48   1              a[0]=0xfe;
+  49   1              a[1]=len+4;
+  50   1              a[2]=port;
+  51   1              a[3]=port;
+  52   1              a[4]=(unsigned char)(add&0xff);
+C51 COMPILER V9.00   ZIGBEE                                                                07/02/2024 16:50:43 PAGE 2   
+
+  53   1              a[5]=(unsigned char)(add>>8);
+  54   1              memcpy(a+6,d,len);
+  55   1              a[6+len]=0xff;
+  56   1              SendDatas(a,7+len);
+  57   1      }
+  58          void sendmessages(unsigned char port,unsigned char *d,unsigned char len)//发送至所有的本网络的节点
+  59          {
+  60   1              unsigned char a[50];
+  61   1              a[0]=0xfe;
+  62   1              a[1]=len+4;
+  63   1              a[2]=port;
+  64   1              a[3]=port;
+  65   1              a[4]=0xfe;
+  66   1              a[5]=0xfd;
+  67   1              a[6]=0xfe;
+  68   1              a[7]=0xfd;
+  69   1              memcpy(a+8,d,len);
+  70   1              a[8+len]=0xff;
+  71   1              SendDatas(a,9+len);
+  72   1      }
+  73          
+  74          
+  75          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    265    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     37     122
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

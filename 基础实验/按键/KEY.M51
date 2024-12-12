@@ -1,0 +1,211 @@
+BL51 BANKED LINKER/LOCATER V6.22                                                        09/05/2024  15:57:16  PAGE 1
+
+
+BL51 BANKED LINKER/LOCATER V6.22, INVOKED BY:
+D:\SOFTWARE\KEIL4\C51\BIN\BL51.EXE STARTUP.obj, main.obj TO KEY RAMSIZE (256)
+
+
+MEMORY MODEL: SMALL
+
+
+INPUT MODULES INCLUDED:
+  STARTUP.obj (?C_STARTUP)
+  main.obj (MAIN)
+  D:\SOFTWARE\KEIL4\C51\LIB\C51S.LIB (?C_INIT)
+
+
+LINK MAP OF MODULE:  KEY (?C_STARTUP)
+
+
+            TYPE    BASE      LENGTH    RELOCATION   SEGMENT NAME
+            -----------------------------------------------------
+
+            * * * * * * *   D A T A   M E M O R Y   * * * * * * *
+            REG     0000H     0008H     ABSOLUTE     "REG BANK 0"
+            DATA    0008H     0001H     UNIT         ?DT?MAIN
+            IDATA   0009H     0001H     UNIT         ?STACK
+
+            * * * * * * *   C O D E   M E M O R Y   * * * * * * *
+            CODE    0000H     0003H     ABSOLUTE     
+            CODE    0003H     008CH     UNIT         ?C_C51STARTUP
+            CODE    008FH     0049H     UNIT         ?PR?MAIN?MAIN
+            CODE    00D8H     0026H     UNIT         ?PR?GPIO_INIT?MAIN
+            CODE    00FEH     001DH     UNIT         ?PR?_DELAY1MS?MAIN
+            CODE    011BH     0004H     UNIT         ?C_INITSEG
+
+
+
+OVERLAY MAP OF MODULE:   KEY (?C_STARTUP)
+
+
+SEGMENT
+  +--> CALLED SEGMENT
+---------------------
+?C_C51STARTUP
+  +--> ?PR?MAIN?MAIN
+  +--> ?C_INITSEG
+
+?PR?MAIN?MAIN
+  +--> ?PR?GPIO_INIT?MAIN
+  +--> ?PR?_DELAY1MS?MAIN
+
+
+
+SYMBOL TABLE OF MODULE:  KEY (?C_STARTUP)
+
+  VALUE           TYPE          NAME
+  ----------------------------------
+
+  -------         MODULE        ?C_STARTUP
+  C:0003H         SEGMENT       ?C_C51STARTUP
+  I:0009H         SEGMENT       ?STACK
+BL51 BANKED LINKER/LOCATER V6.22                                                      09/05/2024  15:57:16  PAGE 2
+
+
+  C:0000H         PUBLIC        ?C_STARTUP
+  D:00E0H         SYMBOL        ACC
+  D:00F0H         SYMBOL        B
+  D:0083H         SYMBOL        DPH
+  D:0082H         SYMBOL        DPL
+  N:0000H         SYMBOL        IBPSTACK
+  N:0100H         SYMBOL        IBPSTACKTOP
+  N:0080H         SYMBOL        IDATALEN
+  C:0006H         SYMBOL        IDATALOOP
+  N:0000H         SYMBOL        PBPSTACK
+  N:0100H         SYMBOL        PBPSTACKTOP
+  N:0000H         SYMBOL        PDATALEN
+  N:0000H         SYMBOL        PDATASTART
+  N:0000H         SYMBOL        PPAGE
+  N:0000H         SYMBOL        PPAGEENABLE
+  D:00A0H         SYMBOL        PPAGE_SFR
+  D:0081H         SYMBOL        SP
+  C:0003H         SYMBOL        STARTUP1
+  N:0000H         SYMBOL        XBPSTACK
+  N:0000H         SYMBOL        XBPSTACKTOP
+  N:0000H         SYMBOL        XDATALEN
+  N:0000H         SYMBOL        XDATASTART
+  C:0000H         LINE#         126
+  C:0003H         LINE#         133
+  C:0005H         LINE#         134
+  C:0006H         LINE#         135
+  C:0007H         LINE#         136
+  C:0009H         LINE#         185
+  C:000CH         LINE#         196
+  -------         ENDMOD        ?C_STARTUP
+
+  -------         MODULE        MAIN
+  C:0000H         SYMBOL        _ICE_DUMMY_
+  D:0093H         PUBLIC        P0M1
+  D:0092H         PUBLIC        P1M0
+  D:0096H         PUBLIC        P2M0
+  D:0091H         PUBLIC        P1M1
+  D:0080H         PUBLIC        P0
+  D:00B2H         PUBLIC        P3M0
+  D:0095H         PUBLIC        P2M1
+  D:0090H         PUBLIC        P1
+  D:00B4H         PUBLIC        P4M0
+  D:00B1H         PUBLIC        P3M1
+  D:00A0H         PUBLIC        P2
+  D:00B3H         PUBLIC        P4M1
+  D:00B0H         PUBLIC        P3
+  D:00C0H         PUBLIC        P4
+  C:00FEH         PUBLIC        _Delay1ms
+  D:00C8H         PUBLIC        P5
+  D:00E8H         PUBLIC        P6
+  D:00F8H         PUBLIC        P7
+  D:00A8H         PUBLIC        IE
+  D:00B8H         PUBLIC        IP
+  B:00B0H.3       PUBLIC        KEY1
+  B:00B0H.2       PUBLIC        KEY2
+  D:00D8H         PUBLIC        CCON
+  C:008FH         PUBLIC        main
+BL51 BANKED LINKER/LOCATER V6.22                                                      09/05/2024  15:57:16  PAGE 3
+
+
+  C:00D8H         PUBLIC        GPIO_Init
+  D:0098H         PUBLIC        SCON
+  D:0088H         PUBLIC        TCON
+  B:0080H.4       PUBLIC        PB0
+  B:0080H.3       PUBLIC        PB1
+  B:0080H.7       PUBLIC        PA2
+  B:0080H.2       PUBLIC        PB2
+  B:0080H.6       PUBLIC        PA3
+  B:0080H.1       PUBLIC        PB3
+  B:0080H.5       PUBLIC        PA4
+  B:0080H.0       PUBLIC        PB4
+  D:0008H         PUBLIC        STA_FLAG
+  D:00D0H         PUBLIC        PSW
+  D:0094H         PUBLIC        P0M0
+  -------         PROC          _DELAY1MS
+  D:0006H         SYMBOL        ms
+  -------         DO            
+  D:0001H         SYMBOL        i
+  D:0003H         SYMBOL        j
+  D:0004H         SYMBOL        k
+  -------         ENDDO         
+  C:00FEH         LINE#         65
+  C:00FEH         LINE#         66
+  C:00FEH         LINE#         68
+  C:0101H         LINE#         70
+  C:0108H         LINE#         71
+  C:0108H         LINE#         72
+  C:0109H         LINE#         73
+  C:010AH         LINE#         74
+  C:010BH         LINE#         75
+  C:010DH         LINE#         76
+  C:010FH         LINE#         78
+  C:010FH         LINE#         79
+  C:0111H         LINE#         80
+  C:0113H         LINE#         81
+  C:011AH         LINE#         82
+  -------         ENDPROC       _DELAY1MS
+  -------         PROC          GPIO_INIT
+  C:00D8H         LINE#         84
+  C:00D8H         LINE#         85
+  C:00D8H         LINE#         86
+  C:00DEH         LINE#         87
+  C:00E3H         LINE#         88
+  C:00E8H         LINE#         89
+  C:00EEH         LINE#         90
+  C:00F3H         LINE#         92
+  C:00F5H         LINE#         93
+  C:00F7H         LINE#         94
+  C:00F9H         LINE#         95
+  C:00FBH         LINE#         96
+  C:00FDH         LINE#         98
+  -------         ENDPROC       GPIO_INIT
+  -------         PROC          MAIN
+  C:008FH         LINE#         208
+  C:008FH         LINE#         209
+  C:008FH         LINE#         210
+  C:0092H         LINE#         222
+BL51 BANKED LINKER/LOCATER V6.22                                                      09/05/2024  15:57:16  PAGE 4
+
+
+  C:0092H         LINE#         223
+  C:0092H         LINE#         241
+  C:0095H         LINE#         242
+  C:0095H         LINE#         243
+  C:009CH         LINE#         244
+  C:009FH         LINE#         245
+  C:009FH         LINE#         246
+  C:00A7H         LINE#         247
+  C:00A7H         LINE#         248
+  C:00A9H         LINE#         249
+  C:00ACH         LINE#         250
+  C:00ACH         LINE#         251
+  C:00B3H         LINE#         252
+  C:00B6H         LINE#         253
+  C:00B6H         LINE#         254
+  C:00BEH         LINE#         255
+  C:00BEH         LINE#         256
+  C:00C0H         LINE#         257
+  C:00C6H         LINE#         258
+  C:00C6H         LINE#         259
+  C:00D6H         LINE#         260
+  C:00D6H         LINE#         266
+  -------         ENDPROC       MAIN
+  -------         ENDMOD        MAIN
+
+Program Size: data=10.0 xdata=0 code=287
+LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)

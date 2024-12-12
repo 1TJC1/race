@@ -1,0 +1,59 @@
+C51 COMPILER V9.60.7.0   SPI                                                               06/25/2024 16:19:23 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE SPI
+OBJECT MODULE PLACED IN .\Objects\spi.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE spi.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\LCD;.\hx711) DEBUG OBJECTE
+                    -XTEND PRINT(.\Listings\spi.lst) TABS(2) OBJECT(.\Objects\spi.obj)
+
+line level    source
+
+   1          #include "main.h"
+   2          #include "spi.h"
+   3          
+   4          void SPI_Init()
+   5          {
+   6   1        SCLK = 1; // 时钟线初始状态为高电平
+   7   1        MOSI = 1; // MOSI线初始状态为高电平
+   8   1        CS = 1;   // 片选线初始状态为高电平
+   9   1      }
+  10          
+  11          void SPI_SendByte(unsigned char dat)
+  12          {
+  13   1        unsigned char i;
+  14   1        for (i = 0; i < 8; i++) // 8位数据
+  15   1        {
+  16   2            MOSI = (dat & 0x80); // 将最高位写入MOSI线
+  17   2            dat <<= 1;          // 左移一位
+  18   2            SCLK = 0;           // 时钟线上升沿
+  19   2            SCLK = 1;           // 时钟线下降沿
+  20   2        }
+  21   1        MOSI = 1;
+  22   1      }
+  23          
+  24          void SPI_SendData(unsigned char *pData, unsigned int length)
+  25          {
+  26   1          unsigned int i;
+  27   1          CS = 0; // 选中外设
+  28   1          for (i = 0; i < length; i++)
+  29   1          {
+  30   2              SPI_SendByte(pData[i]); // 发送数据
+  31   2          }
+  32   1          CS = 1; // 取消选中外设
+  33   1      }
+  34          
+  35          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     96    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       5
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

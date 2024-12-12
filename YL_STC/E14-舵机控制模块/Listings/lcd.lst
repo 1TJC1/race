@@ -1,0 +1,725 @@
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE LCD
+OBJECT MODULE PLACED IN .\Objects\lcd.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE lcd.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings
+                    -\lcd.lst) TABS(2) OBJECT(.\Objects\lcd.obj)
+
+line level    source
+
+   1          #include "lcd.h"
+   2          #include "lcd_init.h"
+   3          #include "lcdfont.h"
+   4          
+   5          #include "spi.h"
+   6          #include "stdio.h"
+   7          #include "stdarg.h"
+   8          #include <string.h>
+   9          /******************************************************************************
+  10                函数说明：LCD清屏函数
+  11                入口数据：无
+  12                返回值：  无
+  13          ******************************************************************************/
+  14          void LCD_Clear(u16 Color)
+  15          {
+  16   1          u16 i,j;
+  17   1          LCD_Address_Set(0,0,LCD_W-1,LCD_H-1);
+  18   1          for(i=0;i<LCD_W;i++)
+  19   1          {
+  20   2              for (j=0;j<LCD_H;j++)
+  21   2              {
+  22   3                  LCD_WR_DATA(Color);
+  23   3              }
+  24   2          }
+  25   1      }
+  26          void LCD_Clear1(u16 Color)  //快速刷新清屏
+  27          {
+  28   1          u16 i,k;
+  29   1          u8 Image[LCD_W*2];
+  30   1          for(k=0;k<LCD_W*2;k+=2)
+  31   1          {
+  32   2              Image[k+1] = ((Color)&0x0ff);
+  33   2              Image[k] = ((Color>>8)&0x0ff);
+  34   2          }
+  35   1          LCD_Address_Set(0,0,LCD_W-1,LCD_H-1);
+  36   1      
+  37   1          for(i=0;i<LCD_H;i++)
+  38   1          {
+  39   2              LCD_DC_Set();//写数据
+  40   2      
+  41   2              LCD_CS_Clr();
+  42   2              SPI_SendData((u8 *)&Image[0], LCD_W*2);
+  43   2      //        HAL_SPI_Transmit(&hspi1,(u8 *)&Image[0],LCD_W*2,0xffff);
+  44   2      //      HAL_SPI_Transmit_DMA(&hspi1,(u8 *)&Image[0],LCD_W*2);
+  45   2              LCD_CS_Set();
+  46   2          }
+  47   1      }
+  48          /******************************************************************************
+  49                函数说明：在指定区域填充颜色
+  50                入口数据：xsta,ysta   起始坐标
+  51                          xend,yend   终止坐标
+  52                                          color       要填充的颜色
+  53                返回值：  无
+  54          ******************************************************************************/
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 2   
+
+  55          void LCD_Fill(u16 xsta,u16 ysta,u16 xend,u16 yend,u16 color)
+  56          {          
+  57   1          u16 i,j;
+  58   1          LCD_Address_Set(xsta,ysta,xend-1,yend-1);//设置显示范围
+  59   1          for(i=ysta;i<yend;i++)
+  60   1          {
+  61   2              for(j=xsta;j<xend;j++)
+  62   2              {
+  63   3                  LCD_WR_DATA(color);
+  64   3              }
+  65   2          }
+  66   1      }
+  67          
+  68          /******************************************************************************
+  69                函数说明：在指定位置画点
+  70                入口数据：x,y 画点坐标
+  71                          color 点的颜色
+  72                返回值：  无
+  73          ******************************************************************************/
+  74          void LCD_DrawPoint(u16 x,u16 y,u16 color)
+  75          {
+  76   1          LCD_Address_Set(x,y,x,y);//设置光标位置
+  77   1          LCD_WR_DATA(color);
+  78   1      } 
+  79          
+  80          
+  81          /******************************************************************************
+  82                函数说明：画线
+  83                入口数据：x1,y1   起始坐标
+  84                          x2,y2   终止坐标
+  85                          color   线的颜色
+  86                返回值：  无
+  87          ******************************************************************************/
+  88          void LCD_DrawLine(u16 x1,u16 y1,u16 x2,u16 y2,u16 color)
+  89          {
+  90   1          u16 t;
+  91   1          int xerr=0,yerr=0,delta_x,delta_y,distance;
+  92   1          int incx,incy,uRow,uCol;
+  93   1          delta_x=x2-x1; //计算坐标增量
+  94   1          delta_y=y2-y1;
+  95   1          uRow=x1;//画线起点坐标
+  96   1          uCol=y1;
+  97   1          if(delta_x>0)incx=1; //设置单步方向
+  98   1          else if (delta_x==0)incx=0;//垂直线
+  99   1          else {incx=-1;delta_x=-delta_x;}
+ 100   1          if(delta_y>0)incy=1;
+ 101   1          else if (delta_y==0)incy=0;//水平线
+ 102   1          else {incy=-1;delta_y=-delta_y;}
+ 103   1          if(delta_x>delta_y)distance=delta_x; //选取基本增量坐标轴
+ 104   1          else distance=delta_y;
+ 105   1          for(t=0;t<distance+1;t++)
+ 106   1          {
+ 107   2              LCD_DrawPoint(uRow,uCol,color);//画点
+ 108   2              xerr+=delta_x;
+ 109   2              yerr+=delta_y;
+ 110   2              if(xerr>distance)
+ 111   2              {
+ 112   3                  xerr-=distance;
+ 113   3                  uRow+=incx;
+ 114   3              }
+ 115   2              if(yerr>distance)
+ 116   2              {
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 3   
+
+ 117   3                  yerr-=distance;
+ 118   3                  uCol+=incy;
+ 119   3              }
+ 120   2          }
+ 121   1      }
+ 122          
+ 123          
+ 124          /******************************************************************************
+ 125                函数说明：画矩形
+ 126                入口数据：x1,y1   起始坐标
+ 127                          x2,y2   终止坐标
+ 128                          color   矩形的颜色
+ 129                返回值：  无
+ 130          ******************************************************************************/
+ 131          void LCD_DrawRectangle(u16 x1, u16 y1, u16 x2, u16 y2,u16 color)
+ 132          {
+ 133   1          LCD_DrawLine(x1,y1,x2,y1,color);
+ 134   1          LCD_DrawLine(x1,y1,x1,y2,color);
+ 135   1          LCD_DrawLine(x1,y2,x2,y2,color);
+ 136   1          LCD_DrawLine(x2,y1,x2,y2,color);
+ 137   1      }
+ 138          
+ 139          
+ 140          /******************************************************************************
+ 141                函数说明：画圆
+ 142                入口数据：x0,y0   圆心坐标
+ 143                          r       半径
+ 144                          color   圆的颜色
+ 145                返回值：  无
+ 146          ******************************************************************************/
+ 147          void Draw_Circle(u16 x0,u16 y0,u8 r,u16 color)
+ 148          {
+ 149   1          int a,b;
+ 150   1          a=0;b=r;
+ 151   1          while(a<=b)
+ 152   1          {
+ 153   2              LCD_DrawPoint(x0-b,y0-a,color);             //3
+ 154   2              LCD_DrawPoint(x0+b,y0-a,color);             //0
+ 155   2              LCD_DrawPoint(x0-a,y0+b,color);             //1
+ 156   2              LCD_DrawPoint(x0-a,y0-b,color);             //2
+ 157   2              LCD_DrawPoint(x0+b,y0+a,color);             //4
+ 158   2              LCD_DrawPoint(x0+a,y0-b,color);             //5
+ 159   2              LCD_DrawPoint(x0+a,y0+b,color);             //6
+ 160   2              LCD_DrawPoint(x0-b,y0+a,color);             //7
+ 161   2              a++;
+ 162   2              if((a*a+b*b)>(r*r))//判断要画的点是否过远
+ 163   2              {
+ 164   3                  b--;
+ 165   3              }
+ 166   2          }
+ 167   1      }
+ 168          
+ 169          /******************************************************************************
+ 170                函数说明：显示汉字串
+ 171                入口数据：x,y显示坐标
+ 172                          *s 要显示的汉字串
+ 173                          fc 字的颜色
+ 174                          bc 字的背景色
+ 175                          sizey 字号 可选 16 24 32
+ 176                          mode:  0非叠加模式  1叠加模式
+ 177                返回值：  无
+ 178          ******************************************************************************/
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 4   
+
+ 179          void LCD_ShowChinese(u16 x,u16 y,u8 *s,u16 fc,u16 bc,u8 sizey,u8 mode)
+ 180          {
+ 181   1          while(*s!=0)
+ 182   1          {
+ 183   2              if(sizey==12) LCD_ShowChinese12x12(x,y,s,fc,bc,sizey,mode);
+ 184   2              else if(sizey==16) LCD_ShowChinese16x16(x,y,s,fc,bc,sizey,mode);
+ 185   2              else if(sizey==24) LCD_ShowChinese24x24(x,y,s,fc,bc,sizey,mode);
+ 186   2              else if(sizey==32) LCD_ShowChinese32x32(x,y,s,fc,bc,sizey,mode);
+ 187   2              else return;
+ 188   2              s+=2;
+ 189   2              x+=sizey;
+ 190   2          }
+ 191   1      }
+ 192          
+ 193          /******************************************************************************
+ 194                函数说明：显示单个12x12汉字
+ 195                入口数据：x,y显示坐标
+ 196                          *s 要显示的汉字
+ 197                          fc 字的颜色
+ 198                          bc 字的背景色
+ 199                          sizey 字号
+ 200                          mode:  0非叠加模式  1叠加模式
+ 201                返回值：  无
+ 202          ******************************************************************************/
+ 203          void LCD_ShowChinese12x12(u16 x,u16 y,u8 *s,u16 fc,u16 bc,u8 sizey,u8 mode)
+ 204          {
+ 205   1          u8 i,j,m=0;
+ 206   1          u16 k;
+ 207   1          u16 HZnum;//汉字数目
+ 208   1          u16 TypefaceNum;//一个字符所占字节大小
+ 209   1          u16 x0=x;
+ 210   1          u8 a[16];
+ 211   1          TypefaceNum=(sizey/8+((sizey%8)?1:0))*sizey;
+ 212   1      
+ 213   1          HZnum=sizeof(tfont12)/sizeof(typFNT_GB12);  //统计汉字数目
+ 214   1          for(k=0;k<HZnum;k++)
+ 215   1          {
+ 216   2              if((tfont12[k].Index[0]==*(s))&&(tfont12[k].Index[1]==*(s+1)))
+ 217   2              {
+ 218   3                  LCD_Address_Set(x,y,x+sizey-1,y+sizey-1);
+ 219   3                  for(i=0;i<TypefaceNum;i++)
+ 220   3                  {
+ 221   4                      for(j=0;j<8;j++)
+ 222   4                      {
+ 223   5                          if(!mode)//非叠加方式
+ 224   5                          {
+ 225   6                              if(tfont12[k].Msk[i]&(0x01<<j)){a[2*j]=(u8)((fc>>8)&0XFF);a[2*j+1]=(u8)(fc&0XFF);}
+             -//LCD_WR_DATA(fc);
+ 226   6                              else {a[2*j]=(u8)((bc>>8)&0XFF);a[2*j+1]=(u8)(bc&0XFF);}//LCD_WR_DATA(bc);
+ 227   6                              m++;
+ 228   6                              if(m%sizey==0)
+ 229   6                              {
+ 230   7                                  m=0;
+ 231   7                                  break;
+ 232   7                              }
+ 233   6                          }
+ 234   5                          else//叠加方式
+ 235   5                          {
+ 236   6                              if(tfont12[k].Msk[i]&(0x01<<j)) LCD_DrawPoint(x,y,fc);//画一个点
+ 237   6                              x++;
+ 238   6                              if((x-x0)==sizey)
+ 239   6                              {
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 5   
+
+ 240   7                                  x=x0;
+ 241   7                                  y++;
+ 242   7                                  break;
+ 243   7                              }
+ 244   6                          }
+ 245   5                      }
+ 246   4                      if(!mode)
+ 247   4                      {
+ 248   5                          LCD_DC_Set();//写数据
+ 249   5                          LCD_CS_Clr();
+ 250   5                          SPI_SendData((u8 *)&a[0], 16);
+ 251   5      //                    HAL_SPI_Transmit(&hspi1, (u8 *)&a[0], 16,100);
+ 252   5                          LCD_CS_Set();
+ 253   5                      }
+ 254   4                  }
+ 255   3              }
+ 256   2              continue;  //查找到对应点阵字库立即退出，防止多个汉字重复取模带来影响
+ 257   2          }
+ 258   1      } 
+ 259          
+ 260          /******************************************************************************
+ 261                函数说明：显示单个16x16汉字
+ 262                入口数据：x,y显示坐标
+ 263                          *s 要显示的汉字
+ 264                          fc 字的颜色
+ 265                          bc 字的背景色
+ 266                          sizey 字号
+ 267                          mode:  0非叠加模式  1叠加模式
+ 268                返回值：  无
+ 269          ******************************************************************************/
+ 270          void LCD_ShowChinese16x16(u16 x,u16 y,u8 *s,u16 fc,u16 bc,u8 sizey,u8 mode)
+ 271          {
+ 272   1          u8 i,j,m=0;
+ 273   1          u16 k;
+ 274   1          u16 HZnum;//汉字数目
+ 275   1          u16 TypefaceNum;//一个字符所占字节大小
+ 276   1          u16 x0=x;
+ 277   1          u8 a[16];
+ 278   1        TypefaceNum=(sizey/8+((sizey%8)?1:0))*sizey;
+ 279   1          HZnum=sizeof(tfont16)/sizeof(typFNT_GB16);  //统计汉字数目
+ 280   1          for(k=0;k<HZnum;k++)
+ 281   1          {
+ 282   2              if ((tfont16[k].Index[0]==*(s))&&(tfont16[k].Index[1]==*(s+1)))
+ 283   2              {
+ 284   3                  LCD_Address_Set(x,y,x+sizey-1,y+sizey-1);
+ 285   3                  for(i=0;i<TypefaceNum;i++)
+ 286   3                  {
+ 287   4                      for(j=0;j<8;j++)
+ 288   4                      {
+ 289   5                          if(!mode)//非叠加方式
+ 290   5                          {
+ 291   6                              if(tfont16[k].Msk[i]&(0x01<<j)){a[2*j]=(u8)((fc>>8)&0XFF);a[2*j+1]=(u8)(fc&0XFF);}
+             -//LCD_WR_DATA(fc);
+ 292   6                              else {a[2*j]=(u8)((bc>>8)&0XFF);a[2*j+1]=(u8)(bc&0XFF);}//LCD_WR_DATA(bc);
+ 293   6                              m++;
+ 294   6                              if(m%sizey==0)
+ 295   6                              {
+ 296   7                                  m=0;
+ 297   7                                  break;
+ 298   7                              }
+ 299   6                          }
+ 300   5                          else//叠加方式
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 6   
+
+ 301   5                          {
+ 302   6                              if(tfont16[k].Msk[i]&(0x01<<j)) LCD_DrawPoint(x,y,fc);//画一个点
+ 303   6                              x++;
+ 304   6                              if((x-x0)==sizey)
+ 305   6                              {
+ 306   7                                  x=x0;
+ 307   7                                  y++;
+ 308   7                                  break;
+ 309   7                              }
+ 310   6                          }
+ 311   5                      }
+ 312   4                      if(!mode)
+ 313   4                      {
+ 314   5                          LCD_DC_Set();//写数据
+ 315   5                          LCD_CS_Clr();
+ 316   5                          SPI_SendData((u8 *)&a[0], 16);
+ 317   5      //                    HAL_SPI_Transmit(&hspi1, (u8 *)&a[0], 16,100);
+ 318   5                          LCD_CS_Set();
+ 319   5                      }
+ 320   4                  }
+ 321   3              }
+ 322   2              continue;  //查找到对应点阵字库立即退出，防止多个汉字重复取模带来影响
+ 323   2          }
+ 324   1      } 
+ 325          /******************************************************************************
+ 326                函数说明：显示单个24x24汉字
+ 327                入口数据：x,y显示坐标
+ 328                          *s 要显示的汉字
+ 329                          fc 字的颜色
+ 330                          bc 字的背景色
+ 331                          sizey 字号
+ 332                          mode:  0非叠加模式  1叠加模式
+ 333                返回值：  无
+ 334          ******************************************************************************/
+ 335          void LCD_ShowChinese24x24(u16 x,u16 y,u8 *s,u16 fc,u16 bc,u8 sizey,u8 mode)
+ 336          {
+ 337   1          u8 i,j,m=0;
+ 338   1          u16 k;
+ 339   1          u16 HZnum;//汉字数目
+ 340   1          u16 TypefaceNum;//一个字符所占字节大小
+ 341   1          u16 x0=x;
+ 342   1          u8 a[16];
+ 343   1          TypefaceNum=(sizey/8+((sizey%8)?1:0))*sizey;
+ 344   1          HZnum=sizeof(tfont24)/sizeof(typFNT_GB24);  //统计汉字数目
+ 345   1          for(k=0;k<HZnum;k++)
+ 346   1          {
+ 347   2              if ((tfont24[k].Index[0]==*(s))&&(tfont24[k].Index[1]==*(s+1)))
+ 348   2              {
+ 349   3                  LCD_Address_Set(x,y,x+sizey-1,y+sizey-1);
+ 350   3                  for(i=0;i<TypefaceNum;i++)
+ 351   3                  {
+ 352   4                      for(j=0;j<8;j++)
+ 353   4                      {
+ 354   5                          if(!mode)//非叠加方式
+ 355   5                          {
+ 356   6                              if(tfont24[k].Msk[i]&(0x01<<j)){a[2*j]=(u8)((fc>>8)&0XFF);a[2*j+1]=(u8)(fc&0XFF);}
+             -//LCD_WR_DATA(fc);
+ 357   6                              else {a[2*j]=(u8)((bc>>8)&0XFF);a[2*j+1]=(u8)(bc&0XFF);}//LCD_WR_DATA(bc);
+ 358   6                              m++;
+ 359   6                              if(m%sizey==0)
+ 360   6                              {
+ 361   7                                  m=0;
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 7   
+
+ 362   7                                  break;
+ 363   7                              }
+ 364   6                          }
+ 365   5                          else//叠加方式
+ 366   5                          {
+ 367   6                              if(tfont24[k].Msk[i]&(0x01<<j)) LCD_DrawPoint(x,y,fc);//画一个点
+ 368   6                              x++;
+ 369   6                              if((x-x0)==sizey)
+ 370   6                              {
+ 371   7                                  x=x0;
+ 372   7                                  y++;
+ 373   7                                  break;
+ 374   7                              }
+ 375   6                          }
+ 376   5                      }
+ 377   4                      if(!mode)
+ 378   4                      {
+ 379   5                          LCD_DC_Set();//写数据
+ 380   5                          LCD_CS_Clr();
+ 381   5                          SPI_SendData((u8 *)&a[0], 16);
+ 382   5      //                    HAL_SPI_Transmit(&hspi1, (u8 *)&a[0], 16,100);
+ 383   5                          LCD_CS_Set();
+ 384   5                      }
+ 385   4                  }
+ 386   3              }
+ 387   2              continue;  //查找到对应点阵字库立即退出，防止多个汉字重复取模带来影响
+ 388   2          }
+ 389   1      } 
+ 390          
+ 391          /******************************************************************************
+ 392                函数说明：显示单个32x32汉字
+ 393                入口数据：x,y显示坐标
+ 394                          *s 要显示的汉字
+ 395                          fc 字的颜色
+ 396                          bc 字的背景色
+ 397                          sizey 字号
+ 398                          mode:  0非叠加模式  1叠加模式
+ 399                返回值：  无
+ 400          ******************************************************************************/
+ 401          void LCD_ShowChinese32x32(u16 x,u16 y,u8 *s,u16 fc,u16 bc,u8 sizey,u8 mode)
+ 402          {
+ 403   1          u8 i,j,m=0;
+ 404   1          u16 k;
+ 405   1          u16 HZnum;//汉字数目
+ 406   1          u16 TypefaceNum;//一个字符所占字节大小
+ 407   1          u16 x0=x;
+ 408   1          u8 a[16];
+ 409   1          TypefaceNum=(sizey/8+((sizey%8)?1:0))*sizey;
+ 410   1          HZnum=sizeof(tfont32)/sizeof(typFNT_GB32);  //统计汉字数目
+ 411   1          for(k=0;k<HZnum;k++)
+ 412   1          {
+ 413   2              if ((tfont32[k].Index[0]==*(s))&&(tfont32[k].Index[1]==*(s+1)))
+ 414   2              {
+ 415   3                  LCD_Address_Set(x,y,x+sizey-1,y+sizey-1);
+ 416   3                  for(i=0;i<TypefaceNum;i++)
+ 417   3                  {
+ 418   4                      for(j=0;j<8;j++)
+ 419   4                      {
+ 420   5                          if(!mode)//非叠加方式
+ 421   5                          {
+ 422   6                              if(tfont32[k].Msk[i]&(0x01<<j)){a[2*j]=(u8)((fc>>8)&0XFF);a[2*j+1]=(u8)(fc&0XFF);}
+             -//
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 8   
+
+ 423   6                              else {a[2*j]=(u8)((bc>>8)&0XFF);a[2*j+1]=(u8)(bc&0XFF);}//
+ 424   6                              m++;
+ 425   6                              if(m%sizey==0)
+ 426   6                              {
+ 427   7                                  m=0;
+ 428   7                                  break;
+ 429   7                              }
+ 430   6                          }
+ 431   5                          else//叠加方式
+ 432   5                          {
+ 433   6                              if(tfont32[k].Msk[i]&(0x01<<j)) LCD_DrawPoint(x,y,fc);//画一个点
+ 434   6                              x++;
+ 435   6                              if((x-x0)==sizey)
+ 436   6                              {
+ 437   7                                  x=x0;
+ 438   7                                  y++;
+ 439   7                                  break;
+ 440   7                              }
+ 441   6                          }
+ 442   5                      }
+ 443   4                      if(!mode)
+ 444   4                      {
+ 445   5                          LCD_DC_Set();//写数据
+ 446   5                          LCD_CS_Clr();
+ 447   5                          SPI_SendData((u8 *)&a[0], 16);
+ 448   5      //                    HAL_SPI_Transmit(&hspi1, (u8 *)&a[0], 16,100);
+ 449   5                          LCD_CS_Set();
+ 450   5                      }
+ 451   4                  }
+ 452   3              }
+ 453   2              continue;  //查找到对应点阵字库立即退出，防止多个汉字重复取模带来影响
+ 454   2          }
+ 455   1      }
+ 456          /******************************************************************************
+ 457                函数说明：显示单个字符
+ 458                入口数据：x,y显示坐标
+ 459                          num 要显示的字符
+ 460                          fc 字的颜色
+ 461                          bc 字的背景色
+ 462                          sizey 字号
+ 463                          mode:  0非叠加模式  1叠加模式
+ 464                返回值：  无
+ 465          ******************************************************************************/
+ 466          void LCD_ShowChar(u16 x,u16 y,u8 num,u16 fc,u16 bc,u8 sizey,u8 mode)
+ 467          {
+ 468   1          u8 temp,sizex,t,m=0;
+ 469   1          u16 i,TypefaceNum;//一个字符所占字节大小
+ 470   1          u16 x0=x;
+ 471   1          u8 a[16];
+ 472   1          sizex=sizey/2;
+ 473   1          TypefaceNum=(sizex/8+((sizex%8)?1:0))*sizey;
+ 474   1          num=num-' ';    //得到偏移后的值
+ 475   1          LCD_Address_Set(x,y,x+sizex-1,y+sizey-1);  //设置光标位置
+ 476   1          for(i=0;i<TypefaceNum;i++)
+ 477   1          {
+ 478   2              if(sizey==16)temp=ascii_1608[num][i];              //调用6x12字体
+ 479   2      //        else if(sizey==16)temp=ascii_1608[num][i];       //调用8x16字体
+ 480   2      //        else if(sizey==24)temp=ascii_2412[num][i];       //调用12x24字体
+ 481   2      //        else if(sizey==32)temp=ascii_3216[num][i];       //调用16x32字体
+ 482   2              else return;
+ 483   2              for(t=0;t<8;t++)
+ 484   2              {
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 9   
+
+ 485   3                  if(!mode)//非叠加模式
+ 486   3                  {
+ 487   4                      if(sizex%8==0)
+ 488   4                      {
+ 489   5                          if(temp&(0x01<<t)){a[2*t]=(u8)((fc>>8)&0XFF);a[2*t+1]=(u8)(fc&0XFF);}//LCD_WR_DATA(fc)
+             -;
+ 490   5                          else {a[2*t]=(u8)((bc>>8)&0XFF);a[2*t+1]=(u8)(bc&0XFF);}//LCD_WR_DATA(bc);
+ 491   5                          m++;
+ 492   5                          if(m%sizex==0)
+ 493   5                          {
+ 494   6                              m=0;
+ 495   6                              break;
+ 496   6                          }
+ 497   5                      }
+ 498   4                      else
+ 499   4                      {
+ 500   5                          if(temp&(0x01<<t))LCD_WR_DATA(fc);
+ 501   5                          else LCD_WR_DATA(bc);
+ 502   5                          m++;
+ 503   5                          if(m%sizex==0)
+ 504   5                          {
+ 505   6                              m=0;
+ 506   6                              break;
+ 507   6                          }
+ 508   5      
+ 509   5                      }
+ 510   4                  }
+ 511   3                  else//叠加模式
+ 512   3                  {
+ 513   4                      if(temp&(0x01<<t))LCD_DrawPoint(x,y,fc);//画一个点
+ 514   4                      x++;
+ 515   4                      if((x-x0)==sizex)
+ 516   4                      {
+ 517   5                          x=x0;
+ 518   5                          y++;
+ 519   5                          break;
+ 520   5                      }
+ 521   4                  }
+ 522   3              }
+ 523   2              if(sizex%8==0)
+ 524   2              {
+ 525   3                  if(!mode)//非叠加模式
+ 526   3                  {
+ 527   4                      LCD_DC_Set();//写数据
+ 528   4                      LCD_CS_Clr();
+ 529   4                      SPI_SendData((u8 *)&a[0], 16);
+ 530   4      //                HAL_SPI_Transmit(&hspi1, (u8 *)&a[0], 16,100);
+ 531   4                      LCD_CS_Set() ;
+ 532   4                  }
+ 533   3              }
+ 534   2          }
+ 535   1      }
+ 536          /******************************************************************************
+ 537                函数说明：显示字符串
+ 538                入口数据：x,y显示坐标
+ 539                          *p 要显示的字符串
+ 540                          fc 字的颜色
+ 541                          bc 字的背景色
+ 542                          sizey 字号
+ 543                          mode:  0非叠加模式  1叠加模式
+ 544                返回值：  无
+ 545          ******************************************************************************/
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 10  
+
+ 546          void LCD_ShowString(u16 x,u16 y,const u8 *p,u16 fc,u16 bc,u8 sizey,u8 mode)
+ 547          {         
+ 548   1          while(*p!='\0')
+ 549   1          {
+ 550   2              LCD_ShowChar(x,y,*p,fc,bc,sizey,mode);
+ 551   2              x+=sizey/2;
+ 552   2              p++;
+ 553   2          }
+ 554   1      }
+ 555          /******************************************************************************
+ 556                函数说明：显示数字
+ 557                入口数据：m底数，n指数
+ 558                返回值：  无
+ 559          ******************************************************************************/
+ 560          u32 mypow(u8 m,u8 n)
+ 561          {
+ 562   1          u32 result=1;
+ 563   1          while(n--)result*=m;
+ 564   1          return result;
+ 565   1      }
+ 566          /******************************************************************************
+ 567                函数说明：显示整数变量
+ 568                入口数据：x,y显示坐标
+ 569                          num 要显示整数变量
+ 570                          len 要显示的位数
+ 571                          fc 字的颜色
+ 572                          bc 字的背景色
+ 573                          sizey 字号
+ 574                返回值：  无
+ 575          ******************************************************************************/
+ 576          void LCD_ShowIntNum(u16 x,u16 y,u16 num,u8 len,u16 fc,u16 bc,u8 sizey)
+ 577          {
+ 578   1          u8 t,temp;
+ 579   1          u8 enshow=0;
+ 580   1          u8 sizex=sizey/2;
+ 581   1          for(t=0;t<len;t++)
+ 582   1          {
+ 583   2              temp=(num/mypow(10,len-t-1))%10;
+ 584   2              if(enshow==0&&t<(len-1))
+ 585   2              {
+ 586   3                  if(temp==0)
+ 587   3                  {
+ 588   4                      LCD_ShowChar(x+t*sizex,y,' ',fc,bc,sizey,0);
+ 589   4                      continue;
+ 590   4                  }else enshow=1;
+ 591   3      
+ 592   3              }
+ 593   2              LCD_ShowChar(x+t*sizex,y,temp+48,fc,bc,sizey,0);
+ 594   2          }
+ 595   1      } 
+ 596          /******************************************************************************
+ 597                函数说明：显示两位小数变量
+ 598                入口数据：x,y显示坐标
+ 599                          num 要显示小数变量
+ 600                          len 要显示的位数
+ 601                          fc 字的颜色
+ 602                          bc 字的背景色
+ 603                          sizey 字号
+ 604                返回值：  无
+ 605          ******************************************************************************/
+ 606          void LCD_ShowFloatNum1(u16 x,u16 y,float num,u8 len,u16 fc,u16 bc,u8 sizey)
+ 607          {
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 11  
+
+ 608   1          u8 t,temp,sizex;
+ 609   1          u16 num1;
+ 610   1          sizex=sizey/2;
+ 611   1          num1=num*100;
+ 612   1          for(t=0;t<len;t++)
+ 613   1          {
+ 614   2              temp=(num1/mypow(10,len-t-1))%10;
+ 615   2              if(t==(len-2))
+ 616   2              {
+ 617   3                  LCD_ShowChar(x+(len-2)*sizex,y,'.',fc,bc,sizey,0);
+ 618   3                  t++;
+ 619   3                  len+=1;
+ 620   3              }
+ 621   2              LCD_ShowChar(x+t*sizex,y,temp+48,fc,bc,sizey,0);
+ 622   2          }
+ 623   1      }
+ 624          /******************************************************************************
+ 625                函数说明：显示图片
+ 626                入口数据：x,y起点坐标
+ 627                          length 图片长度
+ 628                          width  图片宽度
+ 629                          pic[]  图片数组
+ 630                返回值：  无
+ 631          ******************************************************************************/
+ 632          void LCD_ShowPicture(u16 x,u16 y,u16 length,u16 width,const u8 pic[])
+ 633          {
+ 634   1          u16 i,j;
+ 635   1          u32 k=0;
+ 636   1          LCD_Address_Set(x,y,x+length-1,y+width-1);
+ 637   1          for(i=0;i<length;i++)
+ 638   1          {
+ 639   2              for(j=0;j<width;j++)
+ 640   2              {
+ 641   3                  LCD_WR_DATA8(pic[k*2]);
+ 642   3                  LCD_WR_DATA8(pic[k*2+1]);
+ 643   3                  k++;
+ 644   3              }
+ 645   2          }
+ 646   1      }
+ 647          void display_graphic(u16 page,u16 column,u8 *dp,u16 fc,u16 bc,u8 sizey,u8 mode)  //显示一串8*16的字符或者1
+             -6*16的汉字
+ 648          {
+ 649   1          u8 i;
+ 650   1          for (i=0;dp[i]!='\0';i++)
+ 651   1          {
+ 652   2              if (dp[i]<0x80)
+ 653   2              {
+ 654   3                  LCD_ShowString(page,column,dp+i,fc,bc,sizey,mode);
+ 655   3                  page+=sizey/2;
+ 656   3              }
+ 657   2              else
+ 658   2              {
+ 659   3                  LCD_ShowChinese(page,column,dp+i,fc,bc,sizey,mode);
+ 660   3                  page+=sizey;i++;
+ 661   3              }
+ 662   2          }
+ 663   1      }
+ 664          void display_printf(u16  page,u16 column,u16 fc,u16 bc,u8 sizey,u8 mode,char* val,...)
+ 665          {
+ 666   1          char a[30];
+ 667   1      
+ 668   1          va_list arg;
+C51 COMPILER V9.60.0.0   LCD                                                               05/07/2024 15:05:54 PAGE 12  
+
+ 669   1          va_start(arg, val);
+ 670   1          vsprintf(a, val, arg);
+ 671   1          va_end(arg);
+ 672   1          display_graphic(page,column,(u8 *)a,fc,bc,sizey,mode);
+ 673   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   7127    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   2216     942
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,180 @@
+C51 COMPILER V9.60.0.0   SHT30                                                             05/02/2024 20:35:22 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE SHT30
+OBJECT MODULE PLACED IN .\Objects\SHT30.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE SHT30\SHT30.C LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\LCD;.\SHT30) DEBUG
+                    - OBJECTEXTEND PRINT(.\Listings\SHT30.lst) TABS(2) OBJECT(.\Objects\SHT30.obj)
+
+line level    source
+
+   1          #include "SHT30.h"
+   2          #include "i2c.h"
+   3          
+   4          int POLYNOMIAL = 0x131;
+   5          unsigned char  data1[3];    //data array for checksum verification
+   6          
+   7          SHT30_Data_TypeDef SHT30_Data;
+   8          /***************************************************************
+   9          * 函数名称: SHT30_reset
+  10          * 说    明: SHT30复位
+  11          * 参    数: 无
+  12          * 返 回 值: 无
+  13          ***************************************************************/
+  14          void SHT30_reset(void)
+  15          {
+  16   1          u8 SHT3X_Resetcommand_Buffer[2]={0x30,0xA2}; //soft reset 
+  17   1          I2C_Master_Transmit(SHT30_Addr, SHT3X_Resetcommand_Buffer);
+  18   1      //    HAL_I2C_Master_Transmit(&userI2C,SHT30_Addr<<1,SHT3X_Resetcommand_Buffer,2,0xff);
+  19   1          Delayxms(15);
+  20   1      }
+  21          /***************************************************************
+  22          * 函数名称: Init_SHT30
+  23          * 说    明: 初始化SHT30，设置测量周期
+  24          * 参    数: 无
+  25          * 返 回 值: 无
+  26          ***************************************************************/
+  27          void Init_SHT30(void)
+  28          {
+  29   1          u8 SHT3X_Modecommand_Buffer[2]={0x22,0x36}; //periodic mode commands 
+  30   1          I2C_Master_Transmit(SHT30_Addr, SHT3X_Modecommand_Buffer);
+  31   1      //    HAL_I2C_Master_Transmit(&userI2C,SHT30_Addr<<1,SHT3X_Modecommand_Buffer,2,0xff); //send periodic mode 
+             -commands
+  32   1      }
+  33          /***************************************************************
+  34          * 函数名称: SHT3x_CheckCrc
+  35          * 说    明: 检查数据正确性
+  36          * 参    数: data：读取到的数据
+  37                      nbrOfBytes：需要校验的数量
+  38                      checksum：读取到的校对比验值
+  39          * 返 回 值: 校验结果，0-成功    1-失败
+  40          ***************************************************************/
+  41          u8 SHT3x_CheckCrc(char dat[], char nbrOfBytes, char checksum)
+  42          {
+  43   1          char crc = 0xFF;
+  44   1          char bit1 = 0;
+  45   1          char byteCtr ;
+  46   1        
+  47   1          for(byteCtr = 0; byteCtr < nbrOfBytes; ++byteCtr)
+  48   1          {
+  49   2              crc ^= (dat[byteCtr]);
+  50   2              for ( bit1 = 8; bit1 > 0; --bit1)
+  51   2              {
+  52   3                  if (crc & 0x80) crc = (crc << 1) ^ POLYNOMIAL;
+  53   3                  else crc = (crc << 1);
+C51 COMPILER V9.60.0.0   SHT30                                                             05/02/2024 20:35:22 PAGE 2   
+
+  54   3              }
+  55   2          }
+  56   1        
+  57   1          if(crc != checksum)
+  58   1          return 1;
+  59   1          else
+  60   1          return 0;
+  61   1      }
+  62          /***************************************************************
+  63          * 函数名称: SHT3x_CalcTemperatureC
+  64          * 说    明: 温度计算
+  65          * 参    数: u16sT：读取到的温度原始数据
+  66          * 返 回 值: 计算后的温度数据
+  67          ***************************************************************/
+  68          float SHT3x_CalcTemperatureC(unsigned short u16sT)
+  69          {
+  70   1        
+  71   1          float temperatureC = 0;            // variable for result
+  72   1      
+  73   1          u16sT &= ~0x0003;           // clear bits [1..0] (status bits)
+  74   1          //-- calculate temperature [℃] --
+  75   1          temperatureC = (175 * (float)u16sT / 65535 - 45); //T = -45 + 175 * rawValue / (2^16-1)
+  76   1        
+  77   1          return temperatureC;
+  78   1      }
+  79          /***************************************************************
+  80          * 函数名称: SHT3x_CalcRH
+  81          * 说    明: 湿度计算
+  82          * 参    数: u16sRH：读取到的湿度原始数据
+  83          * 返 回 值: 计算后的湿度数据
+  84          ***************************************************************/
+  85          float SHT3x_CalcRH(unsigned short u16sRH)
+  86          {
+  87   1          float humidityRH = 0;              // variable for result
+  88   1        
+  89   1          u16sRH &= ~0x0003;          // clear bits [1..0] (status bits)
+  90   1          //-- calculate relative humidity [%RH] --
+  91   1          humidityRH = (100 * (float)u16sRH / 65535);  // RH = rawValue / (2^16-1) * 10
+  92   1        
+  93   1          return humidityRH;
+  94   1      }
+  95          /***************************************************************
+  96          * 函数名称: Init_SHT30
+  97          * 说    明: 初始化Init_SHT30
+  98          * 参    数: 无
+  99          * 返 回 值: 无
+ 100          ***************************************************************/
+ 101          void Init_SHT30_config(void)
+ 102          {
+ 103   1          Init_SHT30();
+ 104   1      }
+ 105          /***************************************************************
+ 106          * 函数名称: SHT30_Read_Data
+ 107          * 说    明: 测量温度、湿度
+ 108          * 参    数: 无
+ 109          * 返 回 值: 无
+ 110          ***************************************************************/
+ 111          void SHT30_Read_Data(void)
+ 112          {
+ 113   1          //char  data[3];    //data array for checksum verification
+ 114   1      //    unsigned char addr = 0;
+ 115   1          unsigned short tmp = 0;
+C51 COMPILER V9.60.0.0   SHT30                                                             05/02/2024 20:35:22 PAGE 3   
+
+ 116   1      //    float t = 0;
+ 117   1          u16 dat;
+ 118   1          u8 SHT3X_Fetchcommand_Bbuffer[2]={0xE0,0x00};               //read the measurement results
+ 119   1          u8 SHT3X_Data_Buffer[6];                                    //byte 0,1 is temperature byte 4,5 is humidity
+ 120   1          
+ 121   1          I2C_Master_Transmit(SHT30_Addr,SHT3X_Fetchcommand_Bbuffer); //Read sht30 sensor data 
+ 122   1          I2C_Master_Receive(SHT30_Addr,SHT3X_Data_Buffer,6); 
+ 123   1      //    HAL_I2C_Master_Transmit(&userI2C,SHT30_Addr<<1,SHT3X_Fetchcommand_Bbuffer,2,0xff); //Read sht30 sensor
+             - data 
+ 124   1      //    HAL_I2C_Master_Receive(&userI2C,(SHT30_Addr<<1)+1,SHT3X_Data_Buffer,6,0xff); 
+ 125   1          
+ 126   1          //    /* check tem */
+ 127   1          data1[0] = SHT3X_Data_Buffer[0];
+ 128   1          data1[1] = SHT3X_Data_Buffer[1];
+ 129   1          data1[2] = SHT3X_Data_Buffer[2];
+ 130   1        
+ 131   1          tmp=SHT3x_CheckCrc(data1, 2, data1[2]);
+ 132   1          if( !tmp ) /* value is ture */
+ 133   1          {
+ 134   2              dat = ((u16)data1[0] << 8) | data1[1];
+ 135   2              SHT30_Data.Temperature = SHT3x_CalcTemperatureC( dat );    
+ 136   2          }
+ 137   1          
+ 138   1          //    /* check humidity */
+ 139   1          data1[0] = SHT3X_Data_Buffer[3];
+ 140   1          data1[1] = SHT3X_Data_Buffer[4];
+ 141   1          data1[2] = SHT3X_Data_Buffer[5];
+ 142   1        
+ 143   1          tmp=SHT3x_CheckCrc(data1, 2, data1[2]);
+ 144   1          if( !tmp ) /* value is ture */
+ 145   1          {
+ 146   2              dat = ((u16)data1[0] << 8) | data1[1];
+ 147   2              SHT30_Data.Humidity = SHT3x_CalcRH( dat );    
+ 148   2          } 
+ 149   1      }
+ 150          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    508    ----
+   CONSTANT SIZE    =      6    ----
+   XDATA SIZE       =     13      23
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

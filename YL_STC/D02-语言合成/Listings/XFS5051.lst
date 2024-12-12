@@ -1,0 +1,102 @@
+C51 COMPILER V9.60.7.0   XFS5051                                                           06/28/2024 22:40:09 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE XFS5051
+OBJECT MODULE PLACED IN .\Objects\XFS5051.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE XFS5051\XFS5051.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\XFS5051;.\UART
+                    -2) DEBUG OBJECTEXTEND PRINT(.\Listings\XFS5051.lst) TABS(2) OBJECT(.\Objects\XFS5051.obj)
+
+line level    source
+
+   1          #include "XFS5051.h"
+   2          #include "string.h"
+   3          
+   4          unsigned char Frame_Info[50]; //定义的文本长度
+   5          
+   6          extern void SendDatas(unsigned char *s,unsigned char len);//串口发送指令
+   7          /***********************************************************
+   8          * 名    称：  YS-XFS5051 文本合成函数
+   9          * 功    能：  发送合成文本到XFS5051芯片进行合成播放
+  10          * 入口参数：  *HZdata:文本指针变量 
+  11          * 出口参数：
+  12          * 说    明： 本函数只用于文本合成，具备背景音乐选择。默认波特率9600bps。           
+  13          * 调用方法：例： SYN_FrameInfo（“飞音云电子”）；
+  14          **********************************************************/
+  15          void XFS_FrameInfo(unsigned char *HZdata,unsigned char len)
+  16          {
+  17   1      /****************需要发送的文本**********************************/ 
+  18   1      //  uint8_t Frame_Info[50]; //定义的文本长度
+  19   1        unsigned int  HZ_Length;  
+  20   1        HZ_Length =len;       //需要发送文本的长度
+  21   1           
+  22   1      /*****************帧固定配置信息**************************************/           
+  23   1        Frame_Info[0] = 0xFD ;      //构造帧头FD
+  24   1        Frame_Info[1] = 0x00 ;      //构造数据区长度的高字节
+  25   1        Frame_Info[2] = HZ_Length+2;    //构造数据区长度的低字节
+  26   1        Frame_Info[3] = 0x01 ;      //构造命令字：合成播放命令         
+  27   1        Frame_Info[4] = 0x01;       //文本编码格式：GBK 
+  28   1       
+  29   1      /*******************发送帧信息***************************************/      
+  30   1        memcpy(Frame_Info+5, HZdata, HZ_Length);
+  31   1      //     PrintCom(Frame_Info,5+HZ_Length); //发送帧配置
+  32   1        SendDatas(Frame_Info,5+HZ_Length);
+  33   1      
+  34   1      }
+  35          
+  36          /**************芯片设置命令*********************/
+  37          unsigned char XFS_StopCom[]={0xFD,0X00,0X01,0X02};//停止合成
+  38          unsigned char XFS_SuspendCom[]={0XFD,0X00,0X01,0X03};//暂停合成
+  39          unsigned char XFS_RecoverCom[]={0XFD,0X00,0X01,0X04};//恢复合成
+  40          unsigned char XFS_ChackCom[]={0XFD,0X00,0X01,0X21};//状态查询
+  41          unsigned char XFS_PowerDownCom[]={0XFD,0X00,0X01,0X88};//进入POWER DOWN 状态命令
+  42          unsigned char XFS_Sound[]={0xFD,0x00,0x06,0x01,0x01,0x5B,0x76,0x34,0x5D};
+  43          unsigned char XFS_man[]={0xFD,0x00,0x07,0x01,0x01,0x5B,0x6D,0x33,0x5D };
+  44          ////发出1帧，字节数 9
+  45          //-> 0xFD 0x00 0x06 0x01 0x01 0x5B 0x76 0x34 0x5D 
+  46          //发出1帧，字节数 9
+  47          //-> 0xFD 0x00 0x06 0x01 0x01 0x5B 0x76 0x33 0x5D 
+  48          /***********************************************************
+  49          * 名    称： void  main(void)
+  50          * 功    能： 主函数 程序入口
+  51          * 入口参数： *Info_data:固定的配置信息变量 
+  52          * 出口参数：
+  53          * 说    明：本函数用于配置，停止合成、暂停合成等设置 ，默认波特率9600bps。           
+  54          * 调用方法：通过调用已经定义的相关数组进行配置。 
+C51 COMPILER V9.60.7.0   XFS5051                                                           06/28/2024 22:40:09 PAGE 2   
+
+  55          **********************************************************/
+  56          void YS_XFS_Set(unsigned char *Info_data,unsigned char len)
+  57          {
+  58   1        unsigned char Com_Len;
+  59   1        Com_Len =len;
+  60   1        SendDatas(Info_data,Com_Len);
+  61   1      }
+  62          
+  63          
+  64          /**********************************************************/
+  65          void YS_Sound_Set(unsigned char n)
+  66          {
+  67   1        unsigned char Com_Len;
+  68   1        Com_Len =9;
+  69   1        XFS_Sound[7]=n+0x30;
+  70   1        SendDatas(XFS_Sound,Com_Len);
+  71   1      }
+  72          /**********************************************************/
+  73          void YS_MANSound_Set(void)
+  74          {
+  75   1        SendDatas(XFS_man,sizeof(XFS_man));
+  76   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    102    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     88       2
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

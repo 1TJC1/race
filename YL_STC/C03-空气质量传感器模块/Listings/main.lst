@@ -1,0 +1,139 @@
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 15:52:53 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\LCD;.\SGP30) DEBUG OBJECT
+                    -EXTEND PRINT(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include "main.h"
+   2          #include "spi.h"
+   3          #include "lcd.h"
+   4          #include "lcd_init.h"
+   5          #include "sgp30.h"
+   6          
+   7          u8 sgp30_Collect=0;
+   8          
+   9          void GPIO_Init(void)
+  10          {
+  11   1        P0M1 = 0x00;//设置P0端口模式
+  12   1        P0M0 = 0xff;
+  13   1        
+  14   1        P1M1 = 0x00;//设置P1端口模式
+  15   1        P1M0 = 0x00;
+  16   1                    
+  17   1        P2M1 = 0x00;//设置P2端口模式
+  18   1        P2M0 = 0x00;
+  19   1                    
+  20   1        P3M1 = 0x00;//设置P3端口模式
+  21   1        P3M0 = 0x00;
+  22   1                    
+  23   1        P4M1 = 0x00;//设置P4端口模式
+  24   1        P4M0 = 0x00;
+  25   1                    
+  26   1        P5M1 = 0x00;//设置P5端口模式
+  27   1        P5M0 = 0x00;  
+  28   1      }
+  29          
+  30          void Timer0_Init(void)    //1毫秒@11.0592MHz
+  31          {
+  32   1        AUXR &= 0x7F;     //定时器时钟12T模式
+  33   1        TMOD &= 0xF0;     //设置定时器模式
+  34   1        TL0 = 0x66;       //设置定时初始值
+  35   1        TH0 = 0xFC;       //设置定时初始值
+  36   1        TF0 = 0;        //清除TF0标志
+  37   1        TR0 = 1;        //定时器0开始计时
+  38   1        ET0 = 1;        //使能定时器0中断
+  39   1      }
+  40          
+  41          //void Uart1Init(void)    //9600bps@11.0592MHz
+  42          //{
+  43          //  SCON = 0x50;    //8位数据,可变波特率
+  44          //  AUXR &= 0xBF;   //定时器时钟12T模式
+  45          //  AUXR &= 0xFE;   //串口1选择定时器1为波特率发生器
+  46          //  TMOD &= 0x0F;   //设置定时器模式
+  47          //  TL1 = 0xE8;     //设置定时初始值
+  48          //  TH1 = 0xFF;     //设置定时初始值
+  49          //  ET1 = 0;      //禁止定时器中断
+  50          //  TR1 = 1;      //定时器1开始计时
+  51          //  ES = 1;
+  52          //  TI = 1;
+  53          //} 
+  54          
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 15:52:53 PAGE 2   
+
+  55          void main()
+  56          {
+  57   1        GPIO_Init();
+  58   1        Timer0_Init();
+  59   1        EA = 1;
+  60   1        SPI_Init();
+  61   1        sgp30_init();
+  62   1        LCD_Init();//LCD初始化
+  63   1        LCD_Clear1(BLACK);
+  64   1        LCD_DrawLine(20,40,20,140,BROWN);   //坐标轴
+  65   1        LCD_DrawLine(20,140,200,140,BROWN);
+  66   1        while(1)
+  67   1        {
+  68   2          static u8 co2_value_pro=0;//前一次的数值
+  69   2          static u8 voc_value_pro=0;
+  70   2          static u8 cnt1_value=1;
+  71   2          LED1=0;
+  72   2          if(sgp30_Collect)
+  73   2          {
+  74   3            sgp30_Collect=0;
+  75   3            
+  76   3            sgp30_read();//温湿度采集
+  77   3            
+  78   3            display_printf(80,165,    GREEN,BLACK,16,0,"%5d",sgp30_data.co2);
+  79   3            display_printf(80,205,LIGHTBLUE,BLACK,16,0,"%5d",sgp30_data.tvoc);
+  80   3      
+  81   3            LCD_DrawLine(20+(cnt1_value-1),140-co2_value_pro,20+cnt1_value,140-(int)(sgp30_data.co2/20.00f),GREEN);
+  82   3            co2_value_pro=(int)(sgp30_data.co2/20.00f);     
+  83   3          
+  84   3            LCD_DrawLine(20+(cnt1_value-1),140-voc_value_pro,20+cnt1_value,140-(int)(sgp30_data.tvoc/20.00f),LIGHTB
+             -LUE);
+  85   3            voc_value_pro=(int)(sgp30_data.tvoc/20.00f);
+  86   3      
+  87   3            cnt1_value++;
+  88   3            if(cnt1_value>=180)
+  89   3            {
+  90   4              cnt1_value=1;
+  91   4              LCD_Fill( 20,40,200,140,BLACK);//清
+  92   4              
+  93   4              LCD_DrawLine(20,40,20,140,BROWN);   //坐标轴
+  94   4              LCD_DrawLine(20,140,200,140,BROWN);
+  95   4            }
+  96   3          }
+  97   2        }
+  98   1      }
+  99          
+ 100          void Timer0_Isr(void) interrupt 1
+ 101          {
+ 102   1        static unsigned int count1 = 0;
+ 103   1        if (++count1 >= 1000)
+ 104   1        {
+ 105   2          LED8 = ~LED8;
+ 106   2          count1 = 0;
+ 107   2          sgp30_Collect=1;
+ 108   2        }
+ 109   1      }
+ 110          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    711    ----
+   CONSTANT SIZE    =      4    ----
+C51 COMPILER V9.60.7.0   MAIN                                                              06/25/2024 15:52:53 PAGE 3   
+
+   XDATA SIZE       =      6    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

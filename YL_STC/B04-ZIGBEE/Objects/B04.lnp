@@ -1,0 +1,5 @@
+".\Objects\main.obj",
+".\Objects\uart2.obj",
+".\Objects\zigbee.obj" 
+TO ".\Objects\B04" 
+PRINT(".\Listings\B04.m51") RAMSIZE(256) 

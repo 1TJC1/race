@@ -1,0 +1,303 @@
+C51 COMPILER V9.00   MAIN                                                                  09/06/2024 14:16:53 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\output\main.obj
+COMPILER INVOKED BY: D:\software\KEIL4\C51\BIN\C51.EXE main.c LARGE BROWSE DEBUG OBJECTEXTEND PRINT(.\listing\main.lst) 
+                    -OBJECT(.\output\main.obj)
+
+line level    source
+
+   1          #include "stc15.h"
+   2          #include "main.h"
+   3          #include "intrins.h"
+   4          #include "spi.h"
+   5          #include "lcd.h"
+   6          #include "lcd_init.h"
+   7          #include "stdio.h"
+   8          
+   9          
+  10          /**************使用说明*****************
+  11          *
+  12          *       模式1：长按KEY1进入板载LED灯测试
+  13          *       模式2：长按KEY2进入外部GPIO测试
+  14          *       
+  15          *
+  16          */
+  17          float adc;
+  18          unsigned char cgqzt[20];
+  19          unsigned char STA_FLAG = 0;               //0:空 1：板载LED  2: 外部GPIO
+  20          
+  21          sbit KEY1 = P3^3;
+  22          sbit KEY2 = P3^2;
+  23          
+  24          sbit PA0 = P1^1;
+  25          sbit PA1 = P1^0;
+  26          sbit PA2 = P0^7;
+  27          sbit PA3 = P0^6;
+  28          sbit PA4 = P0^5;
+  29          
+  30          sbit PB0 = P0^4;
+  31          sbit PB1 = P0^3;
+  32          sbit PB2 = P0^2;
+  33          sbit PB3 = P0^1;
+  34          sbit PB4 = P0^0;
+  35          
+  36          sbit PC0 = P2^5;
+  37          sbit PC1 = P2^6;
+  38          sbit PC2 = P2^7;
+  39          sbit PC3 = P4^5;
+  40          sbit PC4 = P4^6;
+  41          
+  42          sbit PD0 = P2^0;
+  43          sbit PD1 = P2^1;
+  44          sbit PD2 = P2^2;
+  45          sbit PD3 = P2^3;
+  46          sbit PD4 = P2^4;
+  47          
+  48          sbit PE0 = P3^5;
+  49          sbit PE1 = P3^6;
+  50          sbit PE2 = P3^7;
+  51          sbit PE3 = P4^1;
+  52          sbit PE4 = P4^2;
+  53          
+  54          sbit PF0 = P3^4;
+C51 COMPILER V9.00   MAIN                                                                  09/06/2024 14:16:53 PAGE 2   
+
+  55          sbit PF1 = P3^4;
+  56          sbit PF2 = P3^4;
+  57          sbit PF3 = P3^1;
+  58          sbit PF4 = P3^0;
+  59          
+  60          sbit PG0 = P1^3;
+  61          sbit PG1 = P1^4;
+  62          sbit PG2 = P1^5;
+  63          sbit PG3 = P1^6;
+  64          sbit PG4 = P1^7;
+  65          
+  66          #define ADC_POWER   0x80            //ADC电源控制位
+  67          #define ADC_FLAG    0x10            //ADC完成标志
+  68          #define ADC_START   0x08            //ADC起始控制位
+  69          #define ADC_SPEEDLL 0x00            //540个时钟
+  70          #define ADC_SPEEDL  0x20            //360个时钟
+  71          #define ADC_SPEEDH  0x40            //180个时钟
+  72          #define ADC_SPEEDHH 0x60            //90个时钟
+  73          
+  74          void Delay1ms(unsigned int ms)          //@11.0592MHz
+  75          {
+  76   1              unsigned char i, j;
+  77   1              unsigned int k = 0;
+  78   1              
+  79   1              for(k=0;k<ms;k++)
+  80   1              {
+  81   2                      _nop_();
+  82   2                      _nop_();
+  83   2                      _nop_();
+  84   2                      i = 11;
+  85   2                      j = 190;
+  86   2                      do
+  87   2                      {
+  88   3                              while (--j);
+  89   3                      } while (--i);
+  90   2              }
+  91   1      }
+  92          
+  93          void GPIO_Init(void)
+  94          {
+  95   1              P0M1 = 0x00; P0M0 = 0xff; 
+  96   1              P1M1 = 0x00; P1M0 = 0xff;        
+  97   1              P2M1 = 0x00; P2M0 = 0xff;
+  98   1              P3M1 = 0x0c;P3M0 = 0xf3;  
+  99   1              P4M1 = 0x00; P4M0 = 0xFF;  
+ 100   1      
+ 101   1              P0 = 0;
+ 102   1              P1 = 0;
+ 103   1              P2 = 0;
+ 104   1              P3 = 0;
+ 105   1              P4 = 0;
+ 106   1      
+ 107   1      }
+ 108          
+ 109          void InitADC()
+ 110          {
+ 111   1          P1ASF = 0x10;                   //设置P1口为AD口
+ 112   1          ADC_RES = 0;                    //清除结果寄存器
+ 113   1          ADC_CONTR = ADC_POWER | ADC_SPEEDLL;
+ 114   1      }
+ 115          
+ 116          unsigned char GetADCResult(unsigned char ch)
+C51 COMPILER V9.00   MAIN                                                                  09/06/2024 14:16:53 PAGE 3   
+
+ 117          {
+ 118   1          ADC_CONTR = ADC_POWER | ADC_SPEEDLL | ch | ADC_START;
+ 119   1          _nop_();                        //等待4个NOP
+ 120   1          _nop_();
+ 121   1          _nop_();
+ 122   1          _nop_();
+ 123   1          while (!(ADC_CONTR & ADC_FLAG));//等待ADC转换完成
+ 124   1          ADC_CONTR &= ~ADC_FLAG;         //Close ADC
+ 125   1      
+ 126   1          return ADC_RES;                 //返回ADC结果
+ 127   1      }
+ 128          //void KEY_Handle(void)
+ 129          //{
+ 130          //      static unsigned int time_cnt = 0;
+ 131          //
+ 132          //      if(KEY1 == 0)     //输入模式
+ 133          //      {
+ 134          //              Delay1ms(1);
+ 135          //              if(KEY1 == 0)
+ 136          //              {
+ 137          //                      LCD_ShowString(80,160,(u8 *)"01",WHITE,BLACK,16,0);
+ 138          //                      STA_FLAG = 1;
+ 139          //              }
+ 140          //      }
+ 141          //      else if(KEY2 == 0)      //输出模式
+ 142          //      {
+ 143          //              Delay1ms(1);
+ 144          //              if(KEY2 == 0)
+ 145          //              {
+ 146          //                      LCD_ShowString(80,160,(u8 *)"02",WHITE,BLACK,16,0);
+ 147          //                      STA_FLAG = 2;
+ 148          //              }
+ 149          //      }       
+ 150          //}
+ 151          
+ 152          //void LED_Board_Handle(void)
+ 153          //{
+ 154          //      static unsigned char i = 0;
+ 155          //
+ 156          //      P0 = ~(0X01<<i);;
+ 157          //      i++;
+ 158          //      
+ 159          //      if(i==8)
+ 160          //              i=0;
+ 161          //}
+ 162          //void LED_Handle(void)
+ 163          //{
+ 164          //      static unsigned char i = 0;
+ 165          //      unsigned char value = 0;
+ 166          //      
+ 167          //      switch(i++)
+ 168          //      {
+ 169          //              case 0: 
+ 170          //                      PA0=0;PA1=1;PA2=1;PA3=1;PA4=1;
+ 171          //                      PB0=0;PB1=1;PB2=1;PB3=1;PB4=1; 
+ 172          //                      PC0=0;PC1=1;PC2=1;PC3=1;PC4=1; 
+ 173          //                      PD0=0;PD1=1;PD2=1;PD3=1;PD4=1; 
+ 174          //                      PE0=0;PE1=1;PE2=1;PE3=1;PE4=1;
+ 175          //                      PF0=0;PF1=1;PF2=1;PF3=1;PF4=1; 
+ 176          //                      PG0=0;PG1=1;PG2=1;PG3=1;PG4=1;
+ 177          //              break;
+ 178          //
+C51 COMPILER V9.00   MAIN                                                                  09/06/2024 14:16:53 PAGE 4   
+
+ 179          //              case 1: 
+ 180          //                      PA0=1;PA1=0;PA2=1;PA3=1;PA4=1;
+ 181          //                      PB0=1;PB1=0;PB2=1;PB3=1;PB4=1; 
+ 182          //                      PC0=1;PC1=0;PC2=1;PC3=1;PC4=1; 
+ 183          //                      PD0=1;PD1=0;PD2=1;PD3=1;PD4=1; 
+ 184          //                      PE0=1;PE1=0;PE2=1;PE3=1;PE4=1;
+ 185          //                      PF0=1;PF1=0;PF2=1;PF3=1;PF4=1; 
+ 186          //                      PG0=1;PG1=0;PG2=1;PG3=1;PG4=1;
+ 187          //              break;
+ 188          //
+ 189          //              case 2: 
+ 190          //                      PA0=1;PA1=1;PA2=0;PA3=1;PA4=1;
+ 191          //                      PB0=1;PB1=1;PB2=0;PB3=1;PB4=1; 
+ 192          //                      PC0=1;PC1=1;PC2=0;PC3=1;PC4=1; 
+ 193          //                      PD0=1;PD1=1;PD2=0;PD3=1;PD4=1; 
+ 194          //                      PE0=1;PE1=1;PE2=0;PE3=1;PE4=1;
+ 195          //                      PF0=1;PF1=1;PF2=0;PF3=1;PF4=1; 
+ 196          //                      PG0=1;PG1=1;PG2=0;PG3=1;PG4=1;
+ 197          //              break;
+ 198          //
+ 199          //              case 3: 
+ 200          //                      PA0=1;PA1=1;PA2=1;PA3=0;PA4=1;                                            
+ 201          //                      PB0=1;PB1=1;PB2=1;PB3=0;PB4=1; 
+ 202          //                      PC0=1;PC1=1;PC2=1;PC3=0;PC4=1; 
+ 203          //                      PD0=1;PD1=1;PD2=1;PD3=0;PD4=1; 
+ 204          //                      PE0=1;PE1=1;PE2=1;PE3=0;PE4=1;
+ 205          //                      PF0=1;PF1=1;PF2=1;PF3=0;PF4=1;
+ 206          //                      PG0=1;PG1=1;PG2=1;PG3=0;PG4=1;
+ 207          //              break;
+ 208          //
+ 209          //              case 4: 
+ 210          //                      PA0=1;PA1=1;PA2=1;PA3=1;PA4=0;
+ 211          //                      PB0=1;PB1=1;PB2=1;PB3=1;PB4=0; 
+ 212          //                      PC0=1;PC1=1;PC2=1;PC3=1;PC4=0; 
+ 213          //                      PD0=1;PD1=1;PD2=1;PD3=1;PD4=0; 
+ 214          //                      PE0=1;PE1=1;PE2=1;PE3=1;PE4=0;
+ 215          //                      PF0=1;PF1=1;PF2=1;PF3=1;PF4=0;
+ 216          //                      PG0=1;PG1=1;PG2=1;PG3=1;PG4=0;
+ 217          //              break;
+ 218          //
+ 219          //              case 5: 
+ 220          //                      PA0=1;PA1=1;PA2=1;PA3=1;PA4=1;
+ 221          //                      PB0=1;PB1=1;PB2=1;PB3=1;PB4=1; 
+ 222          //                      PC0=1;PC1=1;PC2=1;PC3=1;PC4=1; 
+ 223          //                      PD0=1;PD1=1;PD2=1;PD3=1;PD4=1; 
+ 224          //                      PE0=1;PE1=1;PE2=1;PE3=1;PE4=1;
+ 225          //                      PF0=1;PF1=1;PF2=1;PF3=1;PF4=1; 
+ 226          //                      PG0=1;PG1=1;PG2=1;PG3=1;PG4=1;
+ 227          //              break;
+ 228          //
+ 229          //              default:
+ 230          //              break;
+ 231          //      }
+ 232          //      if(i==6)
+ 233          //              i = 0;
+ 234          //}
+ 235          
+ 236          void main(void)
+ 237          {
+ 238   1              GPIO_Init();
+ 239   1              SPI_Init();
+ 240   1              LCD_Init();//LCD初始化
+C51 COMPILER V9.00   MAIN                                                                  09/06/2024 14:16:53 PAGE 5   
+
+ 241   1              LCD_Clear1(BLACK);
+ 242   1      //      LCD_ShowString(40,100,(u8 *)"Test",WHITE,BLACK,16,0);
+ 243   1      //      LCD_ShowString(40,160,(u8 *)"KEY: -- ",WHITE,BLACK,16,0);
+ 244   1      
+ 245   1              /* 开机初始化为状态1 配置P3.2 P3.3为输入模式*/
+ 246   1      //      STA_FLAG = 0;
+ 247   1      //      KEY1 = 1;
+ 248   1      //      KEY2 = 1;
+ 249   1      
+ 250   1              while(1)
+ 251   1              {
+ 252   2      //              if(STA_FLAG == 1)
+ 253   2      //              {
+ 254   2      //                      LED_Board_Handle();
+ 255   2      //              }
+ 256   2      //              else if(STA_FLAG == 2)
+ 257   2      //              {
+ 258   2      //                      LED_Handle();
+ 259   2      //              }
+ 260   2      //              else
+ 261   2      //                      ;
+ 262   2      //
+ 263   2      //              KEY_Handle();
+ 264   2      //              Delay1ms(100);
+ 265   2                      adc = (float)GetADCResult(4)*5/256;
+ 266   2                      sprintf(cgqzt,"adc:%.2fV",adc);
+ 267   2                      LCD_ShowString(60,100,cgqzt,WHITE,BLACK,16,0);
+ 268   2                      
+ 269   2              }
+ 270   1      
+ 271   1      }                                                                                                                                                                                                                                                                                                          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    229    ----
+   CONSTANT SIZE    =     10    ----
+   XDATA SIZE       =     25    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

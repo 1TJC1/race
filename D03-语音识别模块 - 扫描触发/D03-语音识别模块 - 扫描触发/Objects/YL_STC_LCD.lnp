@@ -1,0 +1,4 @@
+".\Objects\main.obj",
+".\Objects\LD3320.obj" 
+TO ".\Objects\YL_STC_LCD" 
+PRINT(".\Listings\YL_STC_LCD.m51") RAMSIZE(256) 

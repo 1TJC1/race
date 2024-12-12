@@ -1,0 +1,21 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Project:</h2>
+D:\2023\2023\YLpi\program_stc\program_02\YL_STC\YL_STC\E01²ÊµÆ¿ØÖÆÄ£¿é\E01.uvproj
+Project File Date:  05/04/2024
+
+<h2>Output:</h2>
+Build target 'Target 1'
+compiling main.c...
+linking...
+Program Size: data=9.0 xdata=2 code=272
+creating hex file from ".\Objects\E01"...
+".\Objects\E01" - 0 Error(s), 0 Warning(s).
+Build target 'Target 1'
+compiling main.c...
+linking...
+Program Size: data=9.0 xdata=2 code=272
+creating hex file from ".\Objects\E01"...
+".\Objects\E01" - 0 Error(s), 0 Warning(s).

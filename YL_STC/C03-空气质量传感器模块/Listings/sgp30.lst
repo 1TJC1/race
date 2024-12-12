@@ -1,0 +1,191 @@
+C51 COMPILER V9.60.7.0   SGP30                                                             06/25/2024 15:52:54 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE SGP30
+OBJECT MODULE PLACED IN .\Objects\sgp30.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE SGP30\sgp30.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\LCD;.\SGP30) DEBUG
+                    - OBJECTEXTEND PRINT(.\Listings\sgp30.lst) TABS(2) OBJECT(.\Objects\sgp30.obj)
+
+line level    source
+
+   1          #include "sgp30.h"
+   2          #include "i2c.h"
+   3          #include "lcd_init.h"
+   4          
+   5          sgp30_data_t sgp30_data;
+   6          u8 recv_buffer[6]={0};
+   7          
+   8          void I2C_sgp30_Transmit(u8 sgp30_address,u8 *Data,u8 length)
+   9          {
+  10   1        u8 i=0;
+  11   1        I2C_Start();
+  12   1        
+  13   1        I2C_SendByte(sgp30_address);
+  14   1        I2C_WaitAck();
+  15   1        
+  16   1        for(i=0;i<length;i++)
+  17   1        {
+  18   2          I2C_SendByte(Data[i]);
+  19   2          I2C_WaitAck();
+  20   2        }
+  21   1        
+  22   1        I2C_Stop();
+  23   1      }
+  24          
+  25          u8 I2C_sgp30_Receive(u8 sgp30_address, u8 *data_buffer, u8 length) 
+  26          {
+  27   1        u8 i=0;
+  28   1        I2C_Start();
+  29   1        
+  30   1        I2C_SendByte(sgp30_address + 1); // 发送设备地址+读命令
+  31   1        if(I2C_WaitAck()) 
+  32   1        {
+  33   2          I2C_Stop();
+  34   2          return 0;
+  35   2        }
+  36   1        for (i = 0; i < length; i++) 
+  37   1        {
+  38   2          data_buffer[i] = I2C_ReceiveByte();
+  39   2          if (i == length - 1) 
+  40   2          {
+  41   3            I2C_Stop(); // 最后一个字节后发送停止信号
+  42   3          } 
+  43   2          else 
+  44   2          {
+  45   3            I2C_SendAck(); // 发送应答信号
+  46   3          }
+  47   2        }
+  48   1        return 1;
+  49   1      }
+  50          
+  51          /**
+  52           * @brief 向SGP30发送一条指令(16bit)
+  53           * @param cmd SGP30指令
+  54           * @retval  成功返回HAL_OK
+C51 COMPILER V9.60.7.0   SGP30                                                             06/25/2024 15:52:54 PAGE 2   
+
+  55          */
+  56          void sgp30_send_cmd(sgp30_cmd_t cmd)
+  57          {
+  58   1          u8 cmd_buffer[2];
+  59   1          cmd_buffer[0] = cmd >> 8;
+  60   1          cmd_buffer[1] = cmd;
+  61   1          I2C_sgp30_Transmit(SGP30_ADDR,(u8*)cmd_buffer,2);
+  62   1      //    return HAL_I2C_Master_Transmit(&SGP30_I2C_Handle_Name, SGP30_ADDR_WRITE, (u8*) cmd_buffer, 2, 0xFFFF
+             -);
+  63   1      }
+  64          
+  65          /**
+  66           * @brief 软复位SGP30
+  67           * @param none
+  68           * @retval  成功返回HAL_OK
+  69          */
+  70          void sgp30_soft_reset(void)
+  71          {
+  72   1          u8 cmd = 0x06;
+  73   1          I2C_sgp30_Transmit(0x00,&cmd,1);
+  74   1      //    return HAL_I2C_Master_Transmit(&SGP30_I2C_Handle_Name, 0x00, &cmd, 1, 0xFFFF);
+  75   1      }
+  76          
+  77          /**
+  78           * @brief 初始化SGP30空气质量测量模式
+  79           * @param none
+  80           * @retval  成功返回0，失败返回-1
+  81          */
+  82          void sgp30_init(void)
+  83          {
+  84   1          sgp30_soft_reset();
+  85   1      
+  86   1          Delayxms(100);
+  87   1          
+  88   1          sgp30_send_cmd(INIT_AIR_QUALITY);
+  89   1          
+  90   1          Delayxms(100);
+  91   1      }
+  92          
+  93          /**
+  94           * @brief 初始化SGP30空气质量测量模式
+  95           * @param none
+  96           * @retval  成功返回HAL_OK
+  97          */
+  98          void sgp30_start(void)
+  99          {
+ 100   1          sgp30_send_cmd(MEASURE_AIR_QUALITY);
+ 101   1      }
+ 102          
+ 103          #define CRC8_POLYNOMIAL 0x31
+ 104          
+ 105          static u8 CheckCrc8(u8* const message, u8 initial_value)
+ 106          {
+ 107   1          u8  remainder;      //余数
+ 108   1          u8  i = 0, j = 0;  //循环变量
+ 109   1      
+ 110   1          /* 初始化 */
+ 111   1          remainder = initial_value;
+ 112   1      
+ 113   1          for(j = 0; j < 2;j++)
+ 114   1          {
+ 115   2              remainder ^= message[j];
+C51 COMPILER V9.60.7.0   SGP30                                                             06/25/2024 15:52:54 PAGE 3   
+
+ 116   2      
+ 117   2              /* 从最高位开始依次计算  */
+ 118   2              for (i = 0; i < 8; i++)
+ 119   2              {
+ 120   3                  if (remainder & 0x80)
+ 121   3                  {
+ 122   4                      remainder = (remainder << 1)^CRC8_POLYNOMIAL;
+ 123   4                  }
+ 124   3                  else
+ 125   3                  {
+ 126   4                      remainder = (remainder << 1);
+ 127   4                  }
+ 128   3              }
+ 129   2          }
+ 130   1          /* 返回计算的CRC码 */
+ 131   1          return remainder;
+ 132   1      }
+ 133          
+ 134          /**
+ 135           * @brief 读取一次空气质量数据
+ 136           * @param none
+ 137           * @retval  成功返回0，失败返回-1
+ 138          */
+ 139          void sgp30_read(void)
+ 140          {
+ 141   1          //u8 recv_buffer[6]={0};
+ 142   1          
+ 143   1          /* 启动测量 */
+ 144   1          sgp30_start();
+ 145   1          
+ 146   1          Delayxms(100);
+ 147   1          
+ 148   1          /* 读取测量数据 */
+ 149   1          I2C_sgp30_Receive(SGP30_ADDR, (u8*)recv_buffer, 6);
+ 150   1      //    status = HAL_I2C_Master_Receive(&SGP30_I2C_Handle_Name, SGP30_ADDR_READ, (u8*)recv_buffer, 6, 0xFFFF
+             -);
+ 151   1      
+ 152   1          
+ 153   1          /* 校验接收的测量数据 */
+ 154   1          if (CheckCrc8(&recv_buffer[0], 0xFF) == recv_buffer[2] && CheckCrc8(&recv_buffer[3], 0xFF) == recv_buf
+             -fer[5]) 
+ 155   1          {
+ 156   2            /* 转换测量数据 */
+ 157   2            sgp30_data.co2  = recv_buffer[0] << 8 | recv_buffer[1];
+ 158   2            sgp30_data.tvoc = recv_buffer[3] << 8 | recv_buffer[4];
+ 159   2          }
+ 160   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    449    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     10      18
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
